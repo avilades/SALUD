@@ -80,15 +80,34 @@ if df is not None and not df.empty:
     default_metrics = ['peso', 'porcentaje_grasa_corporal', 'masa_muscular_esqueletica']
     default_metrics = [m for m in default_metrics if m in numeric_columns]
     
-    selected_metrics = st.multiselect(
-        "Selecciona las métricas que quieres visualizar en la gráfica:",
-        options=numeric_columns,
-        default=default_metrics
-    )
+    min_date = df['fecha'].min().date()
+    max_date = df['fecha'].max().date()
+    
+    col_sel, col_date = st.columns([2, 1])
+    
+    with col_sel:
+        selected_metrics = st.multiselect(
+            "Selecciona las métricas:",
+            options=numeric_columns,
+            default=default_metrics
+        )
+        
+    with col_date:
+        date_range = st.date_input("Filtrar por rango de fechas:", (min_date, max_date), min_value=min_date, max_value=max_date)
     
     if selected_metrics:
-        # Reestructurar los datos para Plotly
-        df_melted = df.melt(id_vars=['fecha'], value_vars=selected_metrics, 
+        # Asegurarnos de que el usuario ha seleccionado un mínimo de una fecha
+        if len(date_range) == 2:
+            start_date, end_date = date_range
+        else:
+            start_date = end_date = date_range[0]
+            
+        # Filtro de fechas
+        mask = (df['fecha'].dt.date >= start_date) & (df['fecha'].dt.date <= end_date)
+        df_filtered = df.loc[mask]
+
+        # Reestructurar los datos filtrados para Plotly
+        df_melted = df_filtered.melt(id_vars=['fecha'], value_vars=selected_metrics, 
                             var_name='Métrica', value_name='Valor')
         
         # Crear la gráfica interactiva
