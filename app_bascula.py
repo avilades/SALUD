@@ -11,7 +11,7 @@ st.title("⚖️ Dashboard de Análisis Corporal")
 st.markdown("Visualización de métricas recolectadas de la báscula a lo largo del tiempo.")
 
 # Ruta al archivo (fija como pidió el usuario)
-csv_file_path = "results_2.csv"
+# csv_file_path = "results_2.csv"
 
 # leemos el archivo de configuración
 with open("config/config.json", "r") as f:
@@ -60,12 +60,12 @@ if df is not None and not df.empty:
     col1.metric("Peso (kg)", f"{last_record['peso']:.1f}", f"{delta_peso:.1f} kg", delta_color="inverse")
     
     # 2. % Grasa Corporal (Bajar es bueno -> inverse)
-    delta_grasa = last_record['porcentaje_grasa_corporal'] - first_record['porcentaje_grasa_corporal']
-    col2.metric("% Grasa", f"{last_record['porcentaje_grasa_corporal']:.1f}%", f"{delta_grasa:.1f} %", delta_color="inverse")
+    delta_grasa = last_record['grasa_corporal'] - first_record['grasa_corporal']
+    col2.metric("Grasa (kg)", f"{last_record['grasa_corporal']:.1f} kg", f"{delta_grasa:.1f} kg", delta_color="inverse")
     
     # 3. Masa Muscular Esquelética (Subir es bueno -> normal)
-    delta_musculo = last_record['masa_muscular_esqueletica'] - first_record['masa_muscular_esqueletica']
-    col3.metric("Masa Muscular Esq. (kg)", f"{last_record['masa_muscular_esqueletica']:.1f}", f"{delta_musculo:.1f} kg", delta_color="normal")
+    delta_musculo = last_record['masa_muscular'] - first_record['masa_muscular']
+    col3.metric("Masa Muscular (kg)", f"{last_record['masa_muscular']:.1f}", f"{delta_musculo:.1f} kg", delta_color="normal")
     
     # 4. Edad Corporal (Bajar es bueno -> inverse)
     delta_edad = last_record['edad_corporal'] - first_record['edad_corporal']
@@ -85,7 +85,7 @@ if df is not None and not df.empty:
     numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
     
     # Métricas por defecto para la gráfica
-    default_metrics = ['peso', 'porcentaje_grasa_corporal', 'masa_muscular_esqueletica']
+    default_metrics = ['peso', 'grasa_corporal', 'masa_muscular']
     default_metrics = [m for m in default_metrics if m in numeric_columns]
     
     min_date = df['fecha'].min().date()
