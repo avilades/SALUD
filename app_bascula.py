@@ -85,11 +85,15 @@ if df is not None and not df.empty:
     numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
     
     # Métricas por defecto para la gráfica
-    default_metrics = ['peso', 'grasa_corporal', 'masa_muscular']
+    #default_metrics = ['peso', 'grasa_corporal', 'masa_muscular']
+    default_metrics = ['grasa_corporal', 'masa_muscular']
     default_metrics = [m for m in default_metrics if m in numeric_columns]
     
+    import datetime
     min_date = df['fecha'].min().date()
     max_date = df['fecha'].max().date()
+    # Por defecto mostrar los últimos 7 días
+    default_start_date = max(min_date, max_date - datetime.timedelta(days=7))
     
     col_sel, col_date = st.columns([2, 1])
     
@@ -101,7 +105,7 @@ if df is not None and not df.empty:
         )
         
     with col_date:
-        date_range = st.date_input("Filtrar por rango de fechas:", (min_date, max_date), min_value=min_date, max_value=max_date)
+        date_range = st.date_input("Filtrar por rango de fechas:", (default_start_date, max_date), min_value=min_date, max_value=max_date)
     
     if selected_metrics:
         # Asegurarnos de que el usuario ha seleccionado un mínimo de una fecha
