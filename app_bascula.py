@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import json
 
 # Configuración de página
 st.set_page_config(page_title="Análisis de Báscula", page_icon="⚖️", layout="wide")
@@ -11,6 +12,13 @@ st.markdown("Visualización de métricas recolectadas de la báscula a lo largo 
 
 # Ruta al archivo (fija como pidió el usuario)
 csv_file_path = "results_2.csv"
+
+# leemos el archivo de configuración
+with open("config/config.json", "r") as f:
+    config = json.load(f)
+
+# obtener la ruta del archivo desde el archivo de configuración
+csv_file_path = config["csv_file_path"]
 
 # Función para cargar y limpiar datos
 @st.cache_data
