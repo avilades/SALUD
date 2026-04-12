@@ -1,3 +1,28 @@
 {
-    "csv_file_path": "D:\\GIT\\OCR\\results_2.csv"
+    "csv_file_path": "D:\\GIT\\OCR\\results_2.csv",
+    "fecha_nacimiento": "1979-01-01",
+    "calificacion_grasa_viscera": {
+        "en rango": "1-4.5",
+        "por encima": "4.5-9.5",
+        "muy por encima": "9.5-14.5",
+        "extremo": "14.5-20"
+    },
+    "calificacion_masa_muscular": {
+        "por debajo": "1-46",
+        "en rango": "46-58",
+        "por encima": "58-100"
+    },
+    "calificacion_grasa_corporal": {
+        "por debajo": "1-10",
+        "en rango": "10-20",
+        "por encima": "20-26",
+        "extremo": "26-50"
+    },
+    "colores": {
+        "azul_claro": "muy por debajo",
+        "azul": "por debajo",
+        "verde": "en rango",
+        "naranja": "por encima",
+        "rojo": "extremo"
+    }
 }

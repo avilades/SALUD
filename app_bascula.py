@@ -84,10 +84,18 @@ if df is not None and not df.empty:
     # Filtramos columnas que son numéricas para pintarlas
     numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
     
-    # Métricas por defecto para la gráfica
-    #default_metrics = ['peso', 'grasa_corporal', 'masa_muscular']
-    default_metrics = ['grasa_corporal', 'masa_muscular']
-    default_metrics = [m for m in default_metrics if m in numeric_columns]
+    # Métricas por defecto para la primera gráfica
+    default_metrics_1 = ['grasa_corporal', 'masa_muscular']
+    default_metrics_1 = [m for m in default_metrics_1 if m in numeric_columns]
+    
+    # Métricas por defecto para la segunda gráfica
+    default_metrics_2 = ['porcentaje_musculo', 'porcentaje_grasa_corporal']
+    default_metrics_2 = [m for m in default_metrics_2 if m in numeric_columns]
+
+    # Métricas por defecto para la tercera gráfica
+    #default_metrics_3 = ['porcentaje_musculo', 'porcentaje_grasa_corporal']
+    default_metrics_3 = ['calificacion_grasa_visceral', 'edad_corporal']
+    default_metrics_3 = [m for m in default_metrics_3 if m in numeric_columns]
     
     import datetime
     min_date = df['fecha'].min().date()
@@ -95,45 +103,192 @@ if df is not None and not df.empty:
     # Por defecto mostrar los últimos 7 días
     default_start_date = max(min_date, max_date - datetime.timedelta(days=7))
     
-    col_sel, col_date = st.columns([2, 1])
-    
-    with col_sel:
-        selected_metrics = st.multiselect(
-            "Selecciona las métricas:",
-            options=numeric_columns,
-            default=default_metrics
-        )
-        
+    col_date, _ = st.columns([1, 2])
     with col_date:
         date_range = st.date_input("Filtrar por rango de fechas:", (default_start_date, max_date), min_value=min_date, max_value=max_date)
     
-    if selected_metrics:
-        # Asegurarnos de que el usuario ha seleccionado un mínimo de una fecha
-        if len(date_range) == 2:
-            start_date, end_date = date_range
-        else:
-            start_date = end_date = date_range[0]
+    if len(date_range) == 2:
+        start_date, end_date = date_range
+    else:
+        start_date = end_date = date_range[0]
             
-        # Filtro de fechas
-        mask = (df['fecha'].dt.date >= start_date) & (df['fecha'].dt.date <= end_date)
-        df_filtered = df.loc[mask]
+    # Filtro de fechas
+    mask = (df['fecha'].dt.date >= start_date) & (df['fecha'].dt.date <= end_date)
+    df_filtered = df.loc[mask]
 
+    # --- Gráfico 1 ---
+    selected_metrics_1 = st.multiselect(
+        "Selecciona las métricas de la primera gráfica:",
+        options=numeric_columns,
+        default=default_metrics_1
+    )
+        
+    if selected_metrics_1:
         # Reestructurar los datos filtrados para Plotly
-        df_melted = df_filtered.melt(id_vars=['fecha'], value_vars=selected_metrics, 
+        df_melted_1 = df_filtered.melt(id_vars=['fecha'], value_vars=selected_metrics_1, 
                             var_name='Métrica', value_name='Valor')
         
         # Crear la gráfica interactiva
-        fig = px.line(df_melted, x='fecha', y='Valor', color='Métrica', markers=True,
-                      title="Evolución de las métricas en el tiempo",
-                      labels={'fecha': 'Fecha', 'Valor': 'Unidad de medida'})
+        fig_1 = px.line(df_melted_1, x='fecha', y='Valor', color='Métrica', markers=True,
+                      title="Evolución de métricas absolutas en el tiempo",
+                      labels={'fecha': 'Fecha', 'Valor': 'Valor'} )
         
         # Mejorar la interacción de la gráfica
-        fig.update_layout(hovermode="x unified", xaxis_title="")
+        fig_1.update_layout(hovermode="x unified", xaxis_title="")
         
         # Mostrar la gráfica
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig_1, use_container_width=True)
     else:
-        st.info("👆 Por favor, selecciona al menos una métrica para visualizar la gráfica.")
+        st.info("👆 Por favor, selecciona al menos una métrica para visualizar la primera gráfica.")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # --- Gráfico 2 ---
+    selected_metrics_2 = st.multiselect(
+        "Selecciona las métricas de la segunda gráfica (ej. Porcentajes):",
+        options=numeric_columns,
+        default=default_metrics_2
+    )
+
+    if selected_metrics_2:
+        df_melted_2 = df_filtered.melt(id_vars=['fecha'], value_vars=selected_metrics_2, 
+                            var_name='Métrica', value_name='Valor')
+        
+        fig_2 = px.line(df_melted_2, x='fecha', y='Valor', color='Métrica', markers=True,
+                      title="Evolución porcentual en el tiempo",
+                      labels={'fecha': 'Fecha', 'Valor': '%'} )
+        
+        fig_2.update_layout(hovermode="x unified", xaxis_title="")
+        st.plotly_chart(fig_2, use_container_width=True)
+    else:
+        st.info("👆 Por favor, selecciona al menos una métrica para visualizar la segunda gráfica.")
+
+    # --- Utilidades de color dinámicas basadas en config.json ---
+    color_mapper_global = {
+        "azul_claro": "lightblue",
+        "azul": "royalblue",
+        "verde": "green",
+        "naranja": "orange",
+        "rojo": "red",
+        "amarillo": "#FFCC00"
+    }
+    status_to_colorname = {v: k for k, v in config.get("colores", {}).items()}
+    
+    def obtener_color_global(valor, config_dict, default_color="gray"):
+        if not config_dict or pd.isna(valor): return default_color
+        for status, rango_str in config_dict.items():
+            try:
+                partes = rango_str.split('-')
+                if len(partes) == 2 and float(partes[0]) <= valor <= float(partes[1]):
+                    c_name = status_to_colorname.get(status)
+                    return color_mapper_global.get(c_name, default_color) if c_name else default_color
+            except Exception:
+                pass
+        return default_color
+
+    # --- Gráfico 3 ---
+    selected_metrics_3 = st.multiselect(
+        "Selecciona las métricas de la tercera gráfica:",
+        options=numeric_columns,
+        default=default_metrics_3
+    )
+
+    if selected_metrics_3:
+        df_melted_3 = df_filtered.melt(id_vars=['fecha'], value_vars=selected_metrics_3, 
+                            var_name='Métrica', value_name='Valor')
+        
+        fig_3 = px.bar(df_melted_3, x='fecha', y='Valor', color='Métrica', barmode='group',
+                      title="Evolución temporal",
+                      labels={'fecha': 'Fecha', 'Valor': 'Unidad'})
+        
+        # Lógica de colores condicionales basados en config
+        for trace in fig_3.data:
+            metric_name = trace.name
+            colors = []
+            
+            if metric_name == 'edad_corporal':
+                if "fecha_nacimiento" in config:
+                    fecha_nac = pd.to_datetime(config["fecha_nacimiento"])
+                    # Calcular edad real en años precisos
+                    edad_real = (df_filtered['fecha'] - fecha_nac).dt.days / 365.25
+                    
+                    for y_v, e_v in zip(trace.y, edad_real):
+                        if pd.isna(y_v):
+                            colors.append("gray")
+                        elif y_v < e_v:
+                            colors.append("green")
+                        else:
+                            colors.append("red")
+                    trace.marker.color = colors
+
+            elif metric_name == 'calificacion_grasa_visceral':
+                grasa_config = config.get("calificacion_grasa_viscera", {})
+                for y_v in trace.y:
+                    colors.append(obtener_color_global(y_v, grasa_config, "gray"))
+                trace.marker.color = colors
+        
+        fig_3.update_layout(hovermode="x unified", xaxis_title="")
+        st.plotly_chart(fig_3, use_container_width=True)
+    else:
+        st.info("👆 Por favor, selecciona al menos una métrica para visualizar la tercera gráfica.")
+    st.markdown("---")
+    
+    # --- Gráfico 4: Composición de la última medición ---
+    st.header("🥧 Composición Corporal (Última Medición)")
+    
+    # Tomamos el último registro disponible en el dataframe completo (o el filtrado)
+    latest_record = df.iloc[-1]
+    fecha_latest = latest_record['fecha'].strftime('%d/%m/%Y')
+    peso_total = latest_record['peso']
+    masa_musc = latest_record['masa_muscular']
+    grasa_corp = latest_record['grasa_corporal']
+    resto = peso_total - masa_musc - grasa_corp
+    
+    # Preparamos los datos para Plotly
+    df_pie = pd.DataFrame({
+        'Componente': ['Masa Muscular', 'Grasa Corporal', 'Resto (Hueso, Agua, etc.)'],
+        'Valor': [masa_musc, grasa_corp, resto]
+    })
+    # Es mejor evaluar los porcentajes si existen (ya que la config suele ir en base al %)
+    val_musc_eval = latest_record.get('porcentaje_musculo', masa_musc)
+    val_grasa_eval = latest_record.get('porcentaje_grasa_corporal', grasa_corp)
+
+    color_musc = obtener_color_global(val_musc_eval, config.get("calificacion_masa_muscular"), "green")
+    color_grasa = obtener_color_global(val_grasa_eval, config.get("calificacion_grasa_corporal"), "red")
+
+    fig_pie = px.pie(df_pie, values='Valor', names='Componente',
+                     title=f"Distribución del peso actual ({peso_total} kg) - Fecha: {fecha_latest}",
+                     color='Componente',
+                     color_discrete_map={
+                         'Masa Muscular': color_musc,
+                         'Grasa Corporal': color_grasa,
+                         'Resto (Hueso, Agua, etc.)': 'gray'
+                     })
+                     
+    fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+    
+    col_pie, col_legend = st.columns([2, 1])
+    
+    with col_pie:
+        st.plotly_chart(fig_pie, use_container_width=True)
+        
+    with col_legend:
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.subheader("Leyenda de Calificaciones")
+        
+        def dibujar_leyenda(titulo, dict_config):
+            st.markdown(f"**{titulo}**")
+            if dict_config:
+                for status, rango in dict_config.items():
+                    c_name = status_to_colorname.get(status)
+                    css_color = color_mapper_global.get(c_name, "gray") if c_name else "gray"
+                    st.markdown(f"<span style='color:{css_color}; font-size:1.2em;'>■</span> {rango} ({status.title()})", unsafe_allow_html=True)
+            else:
+                st.markdown("*(No configurado en config.json)*")
+                
+        dibujar_leyenda("Masa Muscular", config.get("calificacion_masa_muscular", {}))
+        st.markdown("<br>", unsafe_allow_html=True)
+        dibujar_leyenda("Grasa Corporal", config.get("calificacion_grasa_corporal", {}))
         
     st.markdown("---")
     
