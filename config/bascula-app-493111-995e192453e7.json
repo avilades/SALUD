@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "bascula-app-493111",
+  "private_key_id": "995e192453e7aabaf2ce3c79bb8055dccfc932ee",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCWMNpMhDMasf8C\noDx3PdHNJJmhMOJHqwQ39YMaDqGootmg9gnJV1onKdU9JFE41Yc0rm/TK3kBPGOL\nuXZ8y8/6JlbkYj5dKHnLhPSdI2evqjkVPsx3nEZjq/uX7Ui/EqTUn+8es6M07B7W\nncQcVkes8piOP/LuFGm2U/jCYJq5kxzYhXiF9ofeU/p/coIM8MSUGJTevARqszgM\n9I5I3E/voFZ0ZYP1E9WEIpmXzoGfCqXCa4ks+i5MDfg30a1wJjEFu7u+2ekXKVH5\nclPGf8oEEQCp/qKdwcFxv6dPoDS7+I7qt0XSNHw5N39Weki5GJdSlKAVdQoQklwC\nD795Zb2pAgMBAAECggEAFnJ4vgToKm4+AeN3Bg9cQv/cYkYPG80IlWCBVqynJrAo\nPLFpJwmCNOZAs6Gw7gCj85C6r+IIdNHUwvZWKjLAA9AlHn88eOnqwis98BpxjcSw\nQWegYaQetRjoQn25aK1dq1W4BGuu0eMUfNkZjW6rycJ8YI5YPZMZdaG5RTvxBBkp\nEQRWhiDfDnxYExdDNMwkdU53lHYFxGucsI3gyo/JH/r1pnNCmdEfRBvorhUuYb7Z\nG9LqSb8ydH8elm5SQKmpYZN7LZ/g+UduhjaZMANSaZTMOzx457EXw/gsR/dGx7+T\nZ58Zx5jySvANjOSKvoa33FUaRgkQgWfTVBojh9838QKBgQDG4cp7s/qf34eZxomw\nuPUXIC4BVi/ALV6CKjRonhGrT/v1T0JdnBUaABnC49Wff96UAAUgh7S3UfiFP8O4\nWpKy2IvuLO3N3wT29TCnywE0Fhf6JoUZDq9v58qD3rZIdiBVs1zhJn0xoZRxiBQq\nZpvfo5zaAkjqNqT5apysWSpNBQKBgQDBUzAxQzhTy8wF/l6amSEY6VH48S4KhSsS\nxJnmxeEaFXx0IpQOF3QojFdUd/fTYhLg132xXTp7gaKUg07wbrpAR9/9oYYb3lrh\nQmDJ/xaAeYGW/cWWuh4D8Kw9O8PgOTzlAGcIUJZxCoVTJVmpQh01DjUmnescT4eX\n27Q29TFvVQKBgFhS1CrFzksL6Vu4mVObgHUpvGSpkwFE5NDnz2iasnwjRGE4Nt/9\nvj1SyB4OMsPn9MBDlgNRYUd8puL+Y3xO9RFqLBK1b1LbdYf7cgVCmaE5IqLcUoXD\nSNRo2z5fPRLHKysEQf5XqofNG3CkH1iJQzY5oiILm7gwVmnSGAxOeQPFAoGACOZU\nfKAUkr76CHiaUFGmVWhATs6DiRZyUi3cy+PmJfZBQXNqD3AC9+7mAkx3izKjndgt\nwCGDlLX2DxIwax8d0eG9LQbnjpbg5ifRHttwZL+zOIk8NGEjCplkxHjg3oykAgLP\nu3FCS7fpRVed1g3mHFAoIDv629XJbzM9C56kBPUCgYA4gB4g2CbOPUexjhGe71si\ncLLuXUYnYT1JU1SjS5fesmVo3MH5GHks2qKIh3DXitXgbS0mci/BeZgOAk/8h6Qf\nO3k1uzeyi6+gVKyYgDM1VMhI1YtaDqQhFUs+6tULwmNer9hgc5rAlhRcPcvM/RXB\n8q892ZJZvAS9z3g8wYWehA==\n-----END PRIVATE KEY-----\n",
+  "client_email": "bascula@bascula-app-493111.iam.gserviceaccount.com",
+  "client_id": "105148760819045611972",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/bascula%40bascula-app-493111.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

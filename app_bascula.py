@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import json
+from streamlit_gsheets import GSheetsConnection
 
 # Configuración de página
 st.set_page_config(page_title="Análisis de Báscula", page_icon="⚖️", layout="wide")
@@ -17,15 +18,22 @@ st.markdown("Visualización de métricas recolectadas de la báscula a lo largo 
 with open("config/config.json", "r") as f:
     config = json.load(f)
 
-# obtener la ruta del archivo desde el archivo de configuración
-csv_file_path = config["csv_file_path"]
+# obtener la ruta del archivo desde config
+csv_file_path = config.get("csv_file_path", "")
+google_sheets_url = config.get("google_sheets_url", "")
 
 # Función para cargar y limpiar datos
-@st.cache_data
+@st.cache_data(ttl=600)  # Limpiar cache cada 10 mins (ideal para GSheets)
 def load_data():
     try:
-        # Leer el CSV
-        df = pd.read_csv(csv_file_path)
+        # Priorizar Google Sheets si está configurado
+        if google_sheets_url and "AQUI_TU_ID" not in google_sheets_url:
+            conn = st.connection("gsheets", type=GSheetsConnection)
+            df = conn.read(spreadsheet=google_sheets_url)
+            df = df.dropna(how='all') # Limpiar filas totalmente vacías
+        else:
+            # Leer el CSV local
+            df = pd.read_csv(csv_file_path)
         
         # Convertir la fecha. En el CSV está como dd/mm/yyyy
         df['fecha'] = pd.to_datetime(df['fecha'], format='%d/%m/%Y', errors='coerce')
