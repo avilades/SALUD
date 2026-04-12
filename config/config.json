@@ -16,13 +16,23 @@
         "por debajo": "1-10",
         "en rango": "10-20",
         "por encima": "20-26",
-        "extremo": "26-50"
+        "muy por encima": "26-50",
+        "extremo": "50-100"
     },
-    "colores": {
-        "azul_claro": "muy por debajo",
-        "azul": "por debajo",
-        "verde": "en rango",
-        "naranja": "por encima",
-        "rojo": "extremo"
+    "colors": {
+        "#BEDBFF": "muy por debajo",
+        "#2C92B8": "por debajo",
+        "#2AA63E": "en rango",
+        "#FFCC00": "por encima",
+        "#F54927": "muy por encima",
+        "#E7180B": "extremo"
+    },
+    "color_mapper_global": {
+        "lightblue": "#BEDBFF",
+        "royalblue": "#2C92B8",
+        "green": "#2AA63E",
+        "yellow": "#FFCC00",
+        "orange": "#F54927",
+        "red": "#E7180B"
     }
 }

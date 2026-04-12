@@ -164,15 +164,9 @@ if df is not None and not df.empty:
         st.info("👆 Por favor, selecciona al menos una métrica para visualizar la segunda gráfica.")
 
     # --- Utilidades de color dinámicas basadas en config.json ---
-    color_mapper_global = {
-        "azul_claro": "lightblue",
-        "azul": "royalblue",
-        "verde": "green",
-        "naranja": "orange",
-        "rojo": "red",
-        "amarillo": "#FFCC00"
-    }
-    status_to_colorname = {v: k for k, v in config.get("colores", {}).items()}
+    # Construir un mapa de status -> hex_color invertido de la config "colors" (o "colores")
+    mapa_colores = config.get("colors", config.get("colores", {}))
+    status_to_hex = {v: k for k, v in mapa_colores.items()}
     
     def obtener_color_global(valor, config_dict, default_color="gray"):
         if not config_dict or pd.isna(valor): return default_color
@@ -180,8 +174,8 @@ if df is not None and not df.empty:
             try:
                 partes = rango_str.split('-')
                 if len(partes) == 2 and float(partes[0]) <= valor <= float(partes[1]):
-                    c_name = status_to_colorname.get(status)
-                    return color_mapper_global.get(c_name, default_color) if c_name else default_color
+                    c_hex = status_to_hex.get(status)
+                    return c_hex if c_hex else default_color
             except Exception:
                 pass
         return default_color
@@ -221,11 +215,28 @@ if df is not None and not df.empty:
                             colors.append("red")
                     trace.marker.color = colors
 
-            elif metric_name == 'calificacion_grasa_visceral':
-                grasa_config = config.get("calificacion_grasa_viscera", {})
-                for y_v in trace.y:
-                    colors.append(obtener_color_global(y_v, grasa_config, "gray"))
-                trace.marker.color = colors
+            else:
+                # Comprobar si existe configuración con "calificacion_" + nombre o el nombre directo
+                nombres_posibles = [
+                    f"calificacion_{metric_name}", 
+                    metric_name
+                ]
+                # Mitigar redundancias o el typo 'viscera' del config
+                if metric_name.startswith("calificacion_"):
+                    nombres_posibles.append(metric_name.replace("calificacion_grasa_visceral", "calificacion_grasa_viscera"))
+                else:
+                    nombres_posibles.append(f"calificacion_{metric_name}".replace("calificacion_grasa_visceral", "calificacion_grasa_viscera"))
+                    
+                metric_config = None
+                for key in nombres_posibles:
+                    if config.get(key):
+                        metric_config = config.get(key)
+                        break
+                        
+                if metric_config:
+                    for y_v in trace.y:
+                        colors.append(obtener_color_global(y_v, metric_config, "gray"))
+                    trace.marker.color = colors
         
         fig_3.update_layout(hovermode="x unified", xaxis_title="")
         st.plotly_chart(fig_3, use_container_width=True)
@@ -280,9 +291,8 @@ if df is not None and not df.empty:
             st.markdown(f"**{titulo}**")
             if dict_config:
                 for status, rango in dict_config.items():
-                    c_name = status_to_colorname.get(status)
-                    css_color = color_mapper_global.get(c_name, "gray") if c_name else "gray"
-                    st.markdown(f"<span style='color:{css_color}; font-size:1.2em;'>■</span> {rango} ({status.title()})", unsafe_allow_html=True)
+                    c_hex = status_to_hex.get(status, "gray")
+                    st.markdown(f"<span style='color:{c_hex}; font-size:1.2em;'>■</span> {rango} ({status.title()})", unsafe_allow_html=True)
             else:
                 st.markdown("*(No configurado en config.json)*")
                 
@@ -304,3 +314,4 @@ if df is not None and not df.empty:
 
 else:
     st.warning("⚠️ No se encontraron datos en el archivo 'results_2.csv' o el formato es incorrecto.")
+    
