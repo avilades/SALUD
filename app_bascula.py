@@ -77,6 +77,9 @@ with st.sidebar:
         max_date = df['fecha'].max().date()
         # Por defecto mostrar el último mes
         default_start_date = max(min_date, max_date - datetime.timedelta(days=30))
+
+        start_date_7_day = max_date - datetime.timedelta(days=7)
+        start_date_30_day = max_date - datetime.timedelta(days=30)
         
         date_range = st.date_input("Selecciona el rango:", (default_start_date, max_date), min_value=min_date, max_value=max_date)
         
@@ -112,7 +115,7 @@ if df is not None and not df.empty:
     df_filtered = df.loc[mask]
 
     # --- PESTAÑAS (TABS) ---
-    tab1, tab2, tab3, tab4 = st.tabs(["🎯 Resumen y Logros", "📈 Evolución Temporal", "🥧 Composición Actual", "📋 Histórico"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🎯 Resumen y Logros", "📈 Semanal","📈 Mensual", "🥧 Composición Actual", "📋 Histórico"])
     
     with tab1:
         st.header("Resumen del Periodo")
@@ -185,9 +188,8 @@ if df is not None and not df.empty:
             with col_c:
                 st.info(f"**Máxima Masa Muscular**\n\n### {record_musculo_max['masa_muscular']:.1f} kg\n*(Registrado el {record_musculo_max['fecha'].strftime('%d/%m/%Y')})*")
 
-
     with tab2:
-        st.header("📈 Evolución Temporal")
+        st.header("📈 Evolución Temporal Semanal")
         if df_filtered.empty:
             st.warning("No hay datos en el rango seleccionado.")
         else:
@@ -202,7 +204,7 @@ if df is not None and not df.empty:
                 df_ma_filtered = df_ma.loc[mask]
                 
                 # Crear la gráfica con Plotly Graph Objects para mayor control multicapa
-                fig_1 = go.Figure()
+                fig_sem_1 = go.Figure()
                 
                 # Definimos paleta de colores nativa
                 colors = px.colors.qualitative.Plotly
@@ -210,18 +212,18 @@ if df is not None and not df.empty:
                 for i, m in enumerate(selected_metrics_1):
                     color = colors[i % len(colors)]
                     # Puntos reales y linea tenue
-                    fig_1.add_trace(go.Scatter(x=df_ma_filtered['fecha'], y=df_ma_filtered[m],
+                    fig_sem_1.add_trace(go.Scatter(x=df_ma_filtered['fecha'], y=df_ma_filtered[m],
                                             mode='lines+markers', name=m,
                                             line=dict(color=color, width=2, dash='dot'), opacity=0.4))
                     # Media Móvil (Tendencia)
-                    fig_1.add_trace(go.Scatter(x=df_ma_filtered['fecha'], y=df_ma_filtered[f"{m}_MA7"],
+                    fig_sem_1.add_trace(go.Scatter(x=df_ma_filtered['fecha'], y=df_ma_filtered[f"{m}_MA7"],
                                             mode='lines', name=f"{m} (Tendencia 7d)",
                                             line=dict(color=color, width=3)))
 
-                fig_1.update_layout(title="Evolución de métricas absolutas (Línea sólida = Tendencia de 7 días)",
+                fig_sem_1.update_layout(title="Evolución de métricas absolutas (Línea sólida = Tendencia de 7 días)",
                                   hovermode="x unified", xaxis_title="")
                 
-                st.plotly_chart(fig_1, use_container_width=True)
+                st.plotly_chart(fig_sem_1, use_container_width=True,key="plot_for_week_data_1")
             else:
                 st.info("👆 Selecciona métricas para el Gráfico 1 en el menú lateral.")
 
@@ -229,11 +231,11 @@ if df is not None and not df.empty:
             if selected_metrics_2:
                 df_melted_2 = df_filtered.melt(id_vars=['fecha'], value_vars=selected_metrics_2, 
                                     var_name='Métrica', value_name='Valor')
-                fig_2 = px.line(df_melted_2, x='fecha', y='Valor', color='Métrica', markers=True,
+                fig_sem_2 = px.line(df_melted_2, x='fecha', y='Valor', color='Métrica', markers=True,
                               title="Evolución porcentual en el tiempo",
                               labels={'fecha': 'Fecha', 'Valor': '%'} )
-                fig_2.update_layout(hovermode="x unified", xaxis_title="")
-                st.plotly_chart(fig_2, use_container_width=True)
+                fig_sem_2.update_layout(hovermode="x unified", xaxis_title="")
+                st.plotly_chart(fig_sem_2, use_container_width=True,key="plot_for_week_data_2")
             else:
                 st.info("👆 Selecciona métricas para el Gráfico 2 en el menú lateral.")
                 
@@ -242,11 +244,11 @@ if df is not None and not df.empty:
                 df_melted_3 = df_filtered.melt(id_vars=['fecha'], value_vars=selected_metrics_3, 
                                     var_name='Métrica', value_name='Valor')
                 
-                fig_3 = px.bar(df_melted_3, x='fecha', y='Valor', color='Métrica', barmode='group',
+                fig_sem_3 = px.bar(df_melted_3, x='fecha', y='Valor', color='Métrica', barmode='group',
                               title="Evolución temporal de Calificaciones Categóricas",
                               labels={'fecha': 'Fecha', 'Valor': 'Unidad'})
                 
-                for trace in fig_3.data:
+                for trace in fig_sem_3.data:    
                     metric_name = trace.name
                     colors_bar = []
                     
@@ -278,12 +280,110 @@ if df is not None and not df.empty:
                                 colors_bar.append(obtener_color_global(y_v, metric_config, "gray"))
                             trace.marker.color = colors_bar
                 
-                fig_3.update_layout(hovermode="x unified", xaxis_title="")
-                st.plotly_chart(fig_3, use_container_width=True)
+                fig_sem_3.update_layout(hovermode="x unified", xaxis_title="")
+                st.plotly_chart(fig_sem_3, use_container_width=True,key="plot_for_week_data_3")
             else:
                 st.info("👆 Selecciona métricas para el Gráfico 3 en el menú lateral.")
 
+
     with tab3:
+        st.header("📈 Evolución Temporal Mensual")
+        if df_filtered.empty:
+            st.warning("No hay datos en el rango seleccionado.")
+        else:
+            # --- Gráfico 1 ---
+            if selected_metrics_1:
+                # Calcular media móvil de 30 días al DF original pero filtrando luego
+                df_ma = df.copy()
+                for m in selected_metrics_1:
+                    df_ma[f"{m}_MA30"] = df_ma[m].rolling(window=30, min_periods=1).mean()
+                    
+                # Aplicamos el filtro de fecha
+                df_ma_filtered = df_ma.loc[mask]
+                
+                # Crear la gráfica con Plotly Graph Objects para mayor control multicapa
+                fig_mes_1 = go.Figure()
+                
+                # Definimos paleta de colores nativa
+                colors = px.colors.qualitative.Plotly
+                
+                for i, m in enumerate(selected_metrics_1):
+                    color = colors[i % len(colors)]
+                    # Puntos reales y linea tenue
+                    fig_mes_1.add_trace(go.Scatter(x=df_ma_filtered['fecha'], y=df_ma_filtered[m],
+                                            mode='lines+markers', name=m,
+                                            line=dict(color=color, width=2, dash='dot'), opacity=0.4))
+                    # Media Móvil (Tendencia)
+                    fig_mes_1.add_trace(go.Scatter(x=df_ma_filtered['fecha'], y=df_ma_filtered[f"{m}_MA30"],
+                                            mode='lines', name=f"{m} (Tendencia 30d)",
+                                            line=dict(color=color, width=3)))
+
+                fig_mes_1.update_layout(title="Evolución de métricas absolutas (Línea sólida = Tendencia de 30 días)",
+                                  hovermode="x unified", xaxis_title="")
+                
+                st.plotly_chart(fig_mes_1, use_container_width=True,key="plot_for_month_data_1")
+            else:
+                st.info("👆 Selecciona métricas para el Gráfico 1 en el menú lateral.")
+
+            # --- Gráfico 2 ---
+            if selected_metrics_2:
+                df_melted_2 = df_filtered.melt(id_vars=['fecha'], value_vars=selected_metrics_2, 
+                                    var_name='Métrica', value_name='Valor')
+                fig_mes_2 = px.line(df_melted_2, x='fecha', y='Valor', color='Métrica', markers=True,
+                              title="Evolución porcentual en el tiempo",
+                              labels={'fecha': 'Fecha', 'Valor': '%'} )
+                fig_mes_2.update_layout(hovermode="x unified", xaxis_title="")
+                st.plotly_chart(fig_mes_2, use_container_width=True,key="plot_for_month_data_2")
+            else:
+                st.info("👆 Selecciona métricas para el Gráfico 2 en el menú lateral.")
+                
+            # --- Gráfico 3 ---
+            if selected_metrics_3:
+                df_melted_3 = df_filtered.melt(id_vars=['fecha'], value_vars=selected_metrics_3, 
+                                    var_name='Métrica', value_name='Valor')
+                
+                fig_mes_3 = px.bar(df_melted_3, x='fecha', y='Valor', color='Métrica', barmode='group',
+                              title="Evolución temporal de Calificaciones Categóricas",
+                              labels={'fecha': 'Fecha', 'Valor': 'Unidad'})
+                
+                for trace in fig_mes_3.data:
+                    metric_name = trace.name
+                    colors_bar = []
+                    
+                    if metric_name == 'edad_corporal':
+                        if "fecha_nacimiento" in config:
+                            fecha_nac = pd.to_datetime(config["fecha_nacimiento"])
+                            edad_real = (df_filtered['fecha'] - fecha_nac).dt.days / 365.25
+                            for y_v, e_v in zip(trace.y, edad_real):
+                                if pd.isna(y_v): colors_bar.append("gray")
+                                elif y_v < e_v: colors_bar.append("green")
+                                else: colors_bar.append("red")
+                            trace.marker.color = colors_bar
+
+                    else:
+                        nombres_posibles = [f"calificacion_{metric_name}", metric_name]
+                        if metric_name.startswith("calificacion_"):
+                            nombres_posibles.append(metric_name.replace("calificacion_grasa_visceral", "calificacion_grasa_viscera"))
+                        else:
+                            nombres_posibles.append(f"calificacion_{metric_name}".replace("calificacion_grasa_visceral", "calificacion_grasa_viscera"))
+                            
+                        metric_config = None
+                        for key in nombres_posibles:
+                            if config.get(key):
+                                metric_config = config.get(key)
+                                break
+                                
+                        if metric_config:
+                            for y_v in trace.y:
+                                colors_bar.append(obtener_color_global(y_v, metric_config, "gray"))
+                            trace.marker.color = colors_bar
+                
+                fig_mes_3.update_layout(hovermode="x unified", xaxis_title="")
+                st.plotly_chart(fig_mes_3, use_container_width=True,key="plot_for_month_data_3")
+            else:
+                st.info("👆 Selecciona métricas para el Gráfico 3 en el menú lateral.")
+
+    with tab4:
         st.header("🥧 Composición Corporal")
         
         if not df_filtered.empty:
@@ -340,7 +440,7 @@ if df is not None and not df.empty:
         else:
              st.info("No hay datos para mostrar en la composición corporal.")
              
-    with tab4:
+    with tab5:
         st.header("📋 Datos Completos")
         st.caption("Tabla con todos los registros disponibles, ordenados del más reciente al más antiguo.")
         st.caption("Nota: Los valores en **rojo** indican el máximo histórico y en **verde** el mínimo histórico de cada columna.")
