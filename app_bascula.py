@@ -89,7 +89,7 @@ with st.sidebar:
         st.subheader("📊 Filtros de Gráficas")
         numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
         
-        default_metrics_1 = [m for m in ['grasa_corporal', 'masa_muscular'] if m in numeric_columns]
+        default_metrics_1 = [m for m in ['masa_muscular', 'grasa_corporal'] if m in numeric_columns]
         selected_metrics_1 = st.multiselect("Gráfica 1 (Absolutos):", options=numeric_columns, default=default_metrics_1)
         
         default_metrics_2 = [m for m in ['porcentaje_musculo', 'porcentaje_grasa_corporal'] if m in numeric_columns]
@@ -343,5 +343,26 @@ if df is not None and not df.empty:
     with tab4:
         st.header("📋 Datos Completos")
         st.caption("Tabla con todos los registros disponibles, ordenados del más reciente al más antiguo.")
+        st.caption("Nota: Los valores en **rojo** indican el máximo histórico y en **verde** el mínimo histórico de cada columna.")
+        
         df_reversed = df.sort_values(by='fecha', ascending=False)
-        st.dataframe(df_reversed, use_container_width=True, hide_index=True)
+        
+        # Identificar columnas numéricas para el estilo
+        cols_numericas = df_reversed.select_dtypes(include=['float64', 'int64']).columns
+        
+        # Función personalizada para aplicar fondo y color de fuente negro (contraste)
+        def estilo_extremos(col):
+            is_max = col == col.max()
+            is_min = col == col.min()
+            return [
+                'background-color: #ffcdd2; color: black; font-weight: bold' if v_max 
+                else 'background-color: #c8e6c9; color: black; font-weight: bold' if v_min 
+                else '' 
+                for v_max, v_min in zip(is_max, is_min)
+            ]
+        
+        # Aplicar estilos
+        styled_df = df_reversed.style.format(subset=cols_numericas, formatter="{:.1f}") \
+            .apply(estilo_extremos, subset=cols_numericas)
+            
+        st.dataframe(styled_df, use_container_width=True, hide_index=True)
