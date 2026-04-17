@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import json
 import datetime
+import numpy as np
 from streamlit_gsheets import GSheetsConnection
 
 # Configuración de página
@@ -32,6 +33,73 @@ def obtener_color_global(valor, config_dict, default_color="gray"):
         except Exception:
             pass
     return default_color
+
+def crear_gauge(valor, titulo, config_dict, unidad=""):
+    # Obtener el rango máximo posible
+    if not config_dict:
+        max_val = 100
+    else:
+        # Extraer el valor máximo de los rangos
+        valores = []
+        for v in config_dict.values():
+            try:
+                valores.extend([float(x) for x in v.split('-')])
+            except: pass
+        max_val = max(valores) if valores else 100
+
+    # Crear los pasos de color
+    steps = []
+    if config_dict:
+        for status, rango in config_dict.items():
+            try:
+                min_r, max_r = [float(x) for x in rango.split('-')]
+                c_hex = status_to_hex.get(status, "gray")
+                steps.append({'range': [min_r, max_r], 'color': c_hex})
+            except: pass
+
+    fig = go.Figure(go.Indicator(
+        mode = "gauge+number",
+        value = valor,
+        title = {'text': titulo, 'font': {'size': 18}},
+        number = {'suffix': unidad, 'font': {'size': 24, 'color': "white"}},
+        gauge = {
+            'axis': {'range': [None, max_val], 'tickwidth': 1, 'tickcolor': "white"},
+            'bar': {'color': "white", 'thickness': 0.2},
+            'bgcolor': "rgba(0,0,0,0)",
+            'borderwidth': 2,
+            'bordercolor': "gray",
+            'steps': steps,
+            'threshold': {
+                'line': {'color': "white", 'width': 4},
+                'thickness': 0.75,
+                'value': valor
+            }
+        }
+    ))
+    fig.update_layout(height=230, margin=dict(l=30, r=30, t=50, b=20), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
+    return fig
+
+def añadir_bandas_salud(fig, metrica, config):
+    # Buscar configuración para la métrica
+    nombres_posibles = [f"calificacion_{metrica}", metrica]
+    if metrica.startswith("calificacion_"):
+        nombres_posibles.append(metrica.replace("calificacion_grasa_visceral", "calificacion_grasa_viscera"))
+    
+    metric_config = None
+    for key in nombres_posibles:
+        if config.get(key):
+            metric_config = config.get(key)
+            break
+    
+    if metric_config:
+        for status, rango in metric_config.items():
+            try:
+                min_r, max_r = [float(x) for x in rango.split('-')]
+                c_hex = status_to_hex.get(status)
+                if c_hex:
+                    fig.add_hrect(y0=min_r, y1=max_r, fillcolor=c_hex, opacity=0.1, line_width=0, layer="below")
+            except: pass
+    return fig
 
 # Función para cargar y limpiar datos
 @st.cache_data(ttl=600)  # Limpiar cache cada 10 mins (ideal para GSheets)
@@ -110,8 +178,25 @@ with st.sidebar:
         default_metrics_3 = [m for m in ['calificacion_grasa_visceral', 'edad_corporal'] if m in numeric_columns]
         selected_metrics_3 = st.multiselect("Gráfica 3 (Evolución):", options=numeric_columns, default=default_metrics_3)
         
+        st.markdown("---")
+        st.subheader("💡 Comparativa de Periodos")
+        modo_comparativo = st.checkbox("Activar Periodo de Comparación")
+        if modo_comparativo:
+            min_c = min_date
+            max_c = max_date
+            comp_range = st.date_input("Periodo 2 (Comparativo):", (start_date_7 - datetime.timedelta(days=7), start_date_7 - datetime.timedelta(days=1)), min_value=min_c, max_value=max_c)
+            if len(comp_range) == 2:
+                start_comp, end_comp = comp_range
+            else:
+                start_comp = end_comp = comp_range[0]
+            
     else:
         st.warning("⚠️ No hay datos cargados.")
+    
+    st.markdown("---")
+    st.subheader("🎯 Objetivos")
+    default_target = 74.0
+    peso_objetivo = st.number_input("Peso Objetivo (kg):", value=float(default_target), step=0.1)
 
 # --- TÍTULO PRINCIPAL ---
 st.title("⚖️ Dashboard de Análisis Corporal")
@@ -122,6 +207,12 @@ if df is not None and not df.empty:
     # Filtro de fechas aplicado al DF
     mask = (df['fecha'].dt.date >= start_date_7) & (df['fecha'].dt.date <= end_date_7)
     df_filtered = df.loc[mask]
+
+    if modo_comparativo:
+        mask_comp = (df['fecha'].dt.date >= start_comp) & (df['fecha'].dt.date <= end_comp)
+        df_comp = df.loc[mask_comp]
+    else:
+        df_comp = pd.DataFrame()
 
     # --- PESTAÑAS (TABS) ---
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["🎯 Resumen y Logros", "📈 Masa Muscular","📈 Grasa Corporal", "🥧 Composición Actual", "📋 Histórico"])
@@ -168,21 +259,165 @@ if df is not None and not df.empty:
             
             # --- KPIs ---
             st.subheader("Métricas de Variación")
-            col1, col2, col3, col4, col5 = st.columns(5)
-            col1.metric("Peso (kg)", f"{last_record['peso']:.1f}", f"{delta_peso:.1f} kg", delta_color="inverse")
-            col2.metric("Grasa (kg)", f"{last_record['grasa_corporal']:.1f} kg", f"{delta_grasa:.1f} kg", delta_color="inverse")
-            col3.metric("Masa Muscular (kg)", f"{last_record['masa_muscular']:.1f}", f"{delta_musculo:.1f} kg", delta_color="normal")
             
-            delta_edad = last_record['edad_corporal'] - first_record['edad_corporal']
-            col4.metric("Edad Corporal", f"{last_record['edad_corporal']:.0f}", f"{delta_edad:.0f} años", delta_color="inverse")
-            
-            if 'calificacion_grasa_visceral' in df_filtered.columns:
-                delta_visceral = last_record['calificacion_grasa_visceral'] - first_record['calificacion_grasa_visceral']
-                col5.metric("Grasa Visceral", f"{last_record['calificacion_grasa_visceral']:.1f}", f"{delta_visceral:.1f}", delta_color="inverse")
+            def mostrar_metricas_periodo(curr_df, label="Actual"):
+                if curr_df.empty:
+                    st.info(f"Sin datos para {label}")
+                    return
+                first = curr_df.iloc[0]
+                last = curr_df.iloc[-1]
+                cols = st.columns(5)
+                cols[0].metric(f"Peso ({label})", f"{last['peso']:.1f}", f"{last['peso'] - first['peso']:.1f} kg", delta_color="inverse")
+                cols[1].metric(f"Grasa ({label})", f"{last['grasa_corporal']:.1f} kg", f"{last['grasa_corporal'] - first['grasa_corporal']:.1f} kg", delta_color="inverse")
+                cols[2].metric(f"Músculo ({label})", f"{last['masa_muscular']:.1f}", f"{last['masa_muscular'] - first['masa_muscular']:.1f} kg", delta_color="normal")
+                cols[3].metric("Edad Corp.", f"{last['edad_corporal']:.0f}", f"{last['edad_corporal'] - first['edad_corporal']:.0f} años", delta_color="inverse")
+                if 'calificacion_grasa_visceral' in curr_df.columns:
+                    cols[4].metric("G. Visceral", f"{last['calificacion_grasa_visceral']:.1f}", f"{last['calificacion_grasa_visceral'] - first['calificacion_grasa_visceral']:.1f}", delta_color="inverse")
+
+            if modo_comparativo and not df_comp.empty:
+                st.markdown("**Periodo Principal**")
+                mostrar_metricas_periodo(df_filtered)
+                st.markdown("**Periodo Comparativo**")
+                mostrar_metricas_periodo(df_comp, "Comp.")
+            else:
+                mostrar_metricas_periodo(df_filtered)
                 
+            st.markdown("---")
+
+            # --- Medidores (Gauges) ---
+            st.subheader("🩺 Estado de Salud Actual (Gauges)")
+            g_col1, g_col2, g_col3 = st.columns(3)
+            
+            with g_col1:
+                # Calculamos el IMC dinámicamente si tenemos la estatura en config
+                height = config.get("height")
+                if height and height > 0:
+                    imc_val = last_record['peso'] / (height ** 2)
+                    st.write(f"IMC Calculado (Estatura: {height}m)")
+                else:
+                    imc_val = last_record.get('imc', 0)
+                
+                # Configuración estándar para IMC si no hay en config
+                config_imc = config.get("calificacion_imc", {
+                    "por debajo": "10-18.5",
+                    "en rango": "18.5-25",
+                    "por encima": "25-30",
+                    "muy por encima": "30-35",
+                    "extremo": "35-50"
+                })
+                st.plotly_chart(crear_gauge(imc_val, "IMC", config_imc), use_container_width=True)
+                
+            with g_col2:
+                visceral_val = last_record.get('calificacion_grasa_visceral', 0)
+                config_visc = config.get("calificacion_grasa_viscera", {})
+                st.plotly_chart(crear_gauge(visceral_val, "Grasa Visceral", config_visc), use_container_width=True)
+                
+            with g_col3:
+                musculo_val = last_record.get('porcentaje_musculo', 0)
+                config_musc = config.get("calificacion_masa_muscular", {})
+                st.plotly_chart(crear_gauge(musculo_val, "Masa Muscular", config_musc, "%"), use_container_width=True)
+
+            st.markdown("---")
+
+            # --- Proyección y Metas ---
+            if peso_objetivo > 0 and not df_filtered.empty:
+                st.subheader("🎯 Progreso hacia el Objetivo")
+                
+                # Datos para la regresión (usamos fechas como números)
+                x = (df_filtered['fecha'] - df_filtered['fecha'].min()).dt.days.values
+                y = df_filtered['peso'].values
+                
+                if len(x) > 1:
+                    # Ajuste lineal: y = mx + c
+                    m, c = np.polyfit(x, y, 1)
+                    
+                    # ¿Cuándo llegaremos al peso objetivo? peso_obj = m*x + c  => x = (peso_obj - c) / m
+                    if m != 0:
+                        days_to_target = (peso_objetivo - c) / m
+                        if days_to_target > x[-1]: # Si la meta está en el futuro
+                            target_date = df_filtered['fecha'].min() + datetime.timedelta(days=days_to_target)
+                            
+                            col_goal1, col_goal2 = st.columns([2, 1])
+                            with col_goal1:
+                                days_left = (target_date - last_record['fecha']).days
+                                if days_left > 0:
+                                    st.info(f"📅 **Fecha Estimada:** {target_date.strftime('%d/%m/%Y')} (en aprox. {days_left} días)")
+                                else:
+                                    st.success("🎉 ¡Objetivo alcanzado según la tendencia!")
+                            
+                            with col_goal2:
+                                # Calcular progreso
+                                peso_inicial_periodo = df_filtered.iloc[0]['peso']
+                                total_a_perder = peso_inicial_periodo - peso_objetivo
+                                ya_perdido = peso_inicial_periodo - last_record['peso']
+                                
+                                if total_a_perder > 0:
+                                    progreso = min(max(ya_perdido / total_a_perder, 0.0), 1.0)
+                                    st.write(f"Progreso: {progreso*100:.1f}%")
+                                    st.progress(progreso)
+                        else:
+                            if last_record['peso'] <= peso_objetivo:
+                                st.success(f"🏆 ¡Has superado tu objetivo de {peso_objetivo} kg! (Peso actual: {last_record['peso']:.1f} kg)")
+                            else:
+                                st.warning("📉 La tendencia actual no se dirige hacia tu objetivo. ¡Tú puedes ajustarlo!")
+                else:
+                    st.info("Necesitas al menos dos registros en este periodo para calcular la proyección.")
+
+            st.markdown("---")
+
+            # --- Inteligencia de Datos: Perspectivas y Patrones ---
+            st.subheader("🧠 Perspectivas de Datos")
+            
+            # 1. Alertas por Variaciones Bruscas
+            if len(df_filtered) >= 2:
+                last_val = df_filtered.iloc[-1]
+                prev_val = df_filtered.iloc[-2]
+                
+                # Alerta: Pérdida significativa de músculo
+                diff_musc_last = last_val['masa_muscular'] - prev_val['masa_muscular']
+                if diff_musc_last < -0.5:
+                    st.warning(f"⚠️ **Alerta de Músculo:** Has perdido {abs(diff_musc_last):.1f} kg de masa muscular desde el último registro. ¡Asegúrate de consumir suficiente proteína!")
+                
+                # Alerta: Aumento significativo de grasa
+                diff_grasa_last = last_val['grasa_corporal'] - prev_val['grasa_corporal']
+                if diff_grasa_last > 0.5:
+                    st.error(f"⚠️ **Alerta de Grasa:** Aumento de {diff_grasa_last:.1f} kg de grasa corporal. ¡Revisa tu actividad física!")
+
+            # 2. Gráfico de Patrones por Día de la Semana
+            st.markdown("**Patrones Semanales (Promedio por día)**")
+            df_patterns = df_filtered.copy()
+            df_patterns['dia_semana'] = df_patterns['fecha'].dt.day_name()
+            # Ordenar días correctamente
+            dias_orden = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+            df_patterns['dia_semana'] = pd.Categorical(df_patterns['dia_semana'], categories=dias_orden, ordered=True)
+            
+            promedio_dia = df_patterns.groupby('dia_semana', observed=True)[['peso', 'grasa_corporal']].mean().reset_index()
+            
+            fig_patterns = px.bar(promedio_dia, x='dia_semana', y='peso', 
+                                title="Media de Peso por Día de la Semana",
+                                color='peso', color_continuous_scale='Blues')
+            fig_patterns.update_layout(height=350, xaxis_title="", coloraxis_showscale=False)
+            st.plotly_chart(fig_patterns, use_container_width=True)
+            
             st.markdown("---")
             
             # --- Logros ---
+            st.subheader("🏆 Comparativa: Primer Registro vs Actual")
+            record_inicial = df.iloc[0]
+            
+            diff_peso_total = last_record['peso'] - record_inicial['peso']
+            diff_grasa_total = last_record['grasa_corporal'] - record_inicial['grasa_corporal']
+            diff_musculo_total = last_record['masa_muscular'] - record_inicial['masa_muscular']
+            
+            c_hist1, c_hist2, c_hist3 = st.columns(3)
+            with c_hist1:
+                st.metric("Cambio Peso Total", f"{last_record['peso']:.1f} kg", f"{diff_peso_total:.1f} kg (desde inicio)", delta_color="inverse")
+            with c_hist2:
+                st.metric("Cambio Grasa Total", f"{last_record['grasa_corporal']:.1f} kg", f"{diff_grasa_total:.1f} kg (desde inicio)", delta_color="inverse")
+            with c_hist3:
+                st.metric("Cambio Músculo Total", f"{last_record['masa_muscular']:.1f} kg", f"{diff_musculo_total:.1f} kg (desde inicio)", delta_color="normal")
+
+            st.markdown("---")
             st.subheader("🏆 Récords Históricos (Wall of Fame)")
             st.caption("Estos son tus mejores hitos desde que tienes registros en la base de datos.")
             record_peso_min = df.loc[df['peso'].idxmin()]
@@ -232,6 +467,10 @@ if df is not None and not df.empty:
                 fig_sem_1.update_layout(title="Evolución de métricas absolutas (Línea sólida = Tendencia de 7 días)",
                                   hovermode="x unified", xaxis_title="")
                 
+                # Añadir bandas si solo hay una métrica seleccionada para evitar saturación
+                if len(selected_metrics_1) == 1:
+                    fig_sem_1 = añadir_bandas_salud(fig_sem_1, selected_metrics_1[0], config)
+                
                 st.plotly_chart(fig_sem_1, use_container_width=True,key="plot_for_week_data_1")
             else:
                 st.info("👆 Selecciona métricas para el Gráfico 1 en el menú lateral.")
@@ -241,9 +480,13 @@ if df is not None and not df.empty:
                 df_melted_2 = df_filtered.melt(id_vars=['fecha'], value_vars=selected_metrics_2, 
                                     var_name='Métrica', value_name='Valor')
                 fig_sem_2 = px.line(df_melted_2, x='fecha', y='Valor', color='Métrica', markers=True,
-                              title="Evolución porcentual en el tiempo",
-                              labels={'fecha': 'Fecha', 'Valor': '%'} )
+                               title="Evolución porcentual en el tiempo",
+                               labels={'fecha': 'Fecha', 'Valor': '%'} )
                 fig_sem_2.update_layout(hovermode="x unified", xaxis_title="")
+                
+                if len(selected_metrics_2) == 1:
+                    fig_sem_2 = añadir_bandas_salud(fig_sem_2, selected_metrics_2[0], config)
+                    
                 st.plotly_chart(fig_sem_2, use_container_width=True,key="plot_for_week_data_2")
             else:
                 st.info("👆 Selecciona métricas para el Gráfico 2 en el menú lateral.")
@@ -330,6 +573,9 @@ if df is not None and not df.empty:
                 fig_mes_1.update_layout(title="Evolución de métricas absolutas (Línea sólida = Tendencia de 30 días)",
                                   hovermode="x unified", xaxis_title="")
                 
+                if len(selected_metrics_grasa) == 1:
+                    fig_mes_1 = añadir_bandas_salud(fig_mes_1, selected_metrics_grasa[0], config)
+                
                 st.plotly_chart(fig_mes_1, use_container_width=True,key="plot_for_month_data_1")
             else:
                 st.info("👆 Selecciona métricas para el Gráfico 1 en el menú lateral.")
@@ -342,6 +588,10 @@ if df is not None and not df.empty:
                               title="Evolución porcentual en el tiempo",
                               labels={'fecha': 'Fecha', 'Valor': '%'} )
                 fig_mes_2.update_layout(hovermode="x unified", xaxis_title="")
+                
+                if len(selected_metrics_2) == 1:
+                    fig_mes_2 = añadir_bandas_salud(fig_mes_2, selected_metrics_2[0], config)
+                    
                 st.plotly_chart(fig_mes_2, use_container_width=True,key="plot_for_month_data_2")
             else:
                 st.info("👆 Selecciona métricas para el Gráfico 2 en el menú lateral.")
@@ -486,3 +736,13 @@ if df is not None and not df.empty:
             .apply(estilo_extremos, subset=cols_numericas)
             
         st.dataframe(styled_df, use_container_width=True, hide_index=True)
+
+        # --- Botón de Exportación ---
+        st.markdown("---")
+        csv = df_reversed.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Descargar Histórico Filtrado (CSV)",
+            data=csv,
+            file_name=f"analisis_bascula_{datetime.datetime.now().strftime('%Y%m%d')}.csv",
+            mime='text/csv',
+        )
