@@ -79,21 +79,30 @@ with st.sidebar:
         default_start_date = max(min_date, max_date - datetime.timedelta(days=30))
 
         start_date_7_day = max_date - datetime.timedelta(days=7)
-        start_date_30_day = max_date - datetime.timedelta(days=30)
+        start_date_30_day = max_date - datetime.timedelta(days=15)
         
-        date_range = st.date_input("Selecciona el rango:", (default_start_date, max_date), min_value=min_date, max_value=max_date)
+        date_range_7 = st.date_input("Selecciona el rango:", (start_date_7_day, max_date), min_value=min_date, max_value=max_date)
+        #date_range_30 = st.date_input("Selecciona el rango:", (start_date_30_day, max_date), min_value=min_date, max_value=max_date)
         
-        if len(date_range) == 2:
-            start_date, end_date = date_range
+        if len(date_range_7) == 2:
+            start_date_7, end_date_7 = date_range_7
         else:
-            start_date = end_date = date_range[0]
+            start_date_7 = end_date_7 = date_range_7[0]
+            
+        #if len(date_range_30) == 2:
+        #    start_date_30, end_date_30 = date_range_30
+        #else:
+        #    start_date_30 = end_date_30 = date_range_30[0]
             
         st.markdown("---")
         st.subheader("📊 Filtros de Gráficas")
         numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
         
-        default_metrics_1 = [m for m in ['masa_muscular', 'grasa_corporal'] if m in numeric_columns]
+        default_metrics_1 = [m for m in ['masa_muscular'] if m in numeric_columns]
         selected_metrics_1 = st.multiselect("Gráfica 1 (Absolutos):", options=numeric_columns, default=default_metrics_1)
+
+        default_metrics_grasa = [m for m in ['grasa_corporal'] if m in numeric_columns]
+        selected_metrics_grasa = st.multiselect("Gráfica 2 (Absolutos):", options=numeric_columns, default=default_metrics_grasa)
         
         default_metrics_2 = [m for m in ['porcentaje_musculo', 'porcentaje_grasa_corporal'] if m in numeric_columns]
         selected_metrics_2 = st.multiselect("Gráfica 2 (Porcentajes):", options=numeric_columns, default=default_metrics_2)
@@ -111,15 +120,15 @@ st.markdown("Visualización e inteligencia de métricas recolectadas de tu básc
 if df is not None and not df.empty:
     
     # Filtro de fechas aplicado al DF
-    mask = (df['fecha'].dt.date >= start_date) & (df['fecha'].dt.date <= end_date)
+    mask = (df['fecha'].dt.date >= start_date_7) & (df['fecha'].dt.date <= end_date_7)
     df_filtered = df.loc[mask]
 
     # --- PESTAÑAS (TABS) ---
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🎯 Resumen y Logros", "📈 Semanal","📈 Mensual", "🥧 Composición Actual", "📋 Histórico"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🎯 Resumen y Logros", "📈 Masa Muscular","📈 Grasa Corporal", "🥧 Composición Actual", "📋 Histórico"])
     
     with tab1:
         st.header("Resumen del Periodo")
-        st.caption(f"De {start_date.strftime('%d/%m/%Y')} a {end_date.strftime('%d/%m/%Y')}")
+        st.caption(f"De {start_date_7.strftime('%d/%m/%Y')} a {end_date_7.strftime('%d/%m/%Y')}")
         
         if df_filtered.empty:
             st.info("No hay datos en el rango de fechas seleccionado.")
@@ -292,10 +301,10 @@ if df is not None and not df.empty:
             st.warning("No hay datos en el rango seleccionado.")
         else:
             # --- Gráfico 1 ---
-            if selected_metrics_1:
+            if selected_metrics_grasa:
                 # Calcular media móvil de 30 días al DF original pero filtrando luego
                 df_ma = df.copy()
-                for m in selected_metrics_1:
+                for m in selected_metrics_grasa:
                     df_ma[f"{m}_MA30"] = df_ma[m].rolling(window=30, min_periods=1).mean()
                     
                 # Aplicamos el filtro de fecha
@@ -307,7 +316,7 @@ if df is not None and not df.empty:
                 # Definimos paleta de colores nativa
                 colors = px.colors.qualitative.Plotly
                 
-                for i, m in enumerate(selected_metrics_1):
+                for i, m in enumerate(selected_metrics_grasa):
                     color = colors[i % len(colors)]
                     # Puntos reales y linea tenue
                     fig_mes_1.add_trace(go.Scatter(x=df_ma_filtered['fecha'], y=df_ma_filtered[m],
@@ -444,7 +453,18 @@ if df is not None and not df.empty:
         st.header("📋 Datos Completos")
         st.caption("Tabla con todos los registros disponibles, ordenados del más reciente al más antiguo.")
         st.caption("Nota: Los valores en **rojo** indican el máximo histórico y en **verde** el mínimo histórico de cada columna.")
+
+        new_custom_order = [
+        'fecha', 'peso', 'masa_muscular', 'grasa_corporal', 'peso_corporal_sin_grasa',
+        'masa_proteica', 'masa_muscular_esqueletica', 'calificacion_grasa_visceral',
+        'masa_agua_corporal', 'porcentaje_musculo', 'porcentaje_grasa_corporal',
+        'porcentaje_proteina', 'filename', 'imc', 'contenido_mineral_oseo',
+        'porcentaje_agua_corporal', 'porcentaje_mineral_oseo', 'indice_metabolico_basal',
+        'estimacion_relacion_cintura_cadera', 'edad_corporal'
+        ]
         
+
+        df = df[new_custom_order]
         df_reversed = df.sort_values(by='fecha', ascending=False)
         
         # Identificar columnas numéricas para el estilo
