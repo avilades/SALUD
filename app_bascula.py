@@ -603,9 +603,9 @@ if df is not None and not df.empty:
             'date', 'weight', 'muscle_mass', 'body_fat_mass', 'fat_free_body_weight',
             'protein_mass', 'skeletal_muscle_mass', 'visceral_fat_rating',
             'body_water_mass', 'muscle_percentage', 'body_fat_percentage',
-            'protein_percentage', 'filename', 'bmi', 'bone_mineral_content',
+            'protein_percentage', 'bmi', 'bone_mineral_content',
             'body_water_percentage', 'bone_mineral_percentage', 'basal_metabolic_rate',
-            'waist_hip_ratio_estimate', 'body_age'
+            'waist_hip_ratio_estimate', 'body_age', 'filename'
         ]
         
         df = df[new_custom_order]
