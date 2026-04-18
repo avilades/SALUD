@@ -7,61 +7,90 @@ import datetime
 import numpy as np
 from streamlit_gsheets import GSheetsConnection
 
-# Configuración de página
-st.set_page_config(page_title="Análisis de Báscula", page_icon="⚖️", layout="wide")
+# Page Configuration
+st.set_page_config(page_title="Body Composition Analysis", page_icon="⚖️", layout="wide")
 
-# leemos el archivo de configuración
-with open("config/config.json", "r") as f:
+# Column Mapping (Spanish to English)
+COL_MAPPING = {
+    'fecha': 'date',
+    'peso': 'weight',
+    'imc': 'bmi',
+    'porcentaje_grasa_corporal': 'body_fat_percentage',
+    'masa_agua_corporal': 'body_water_mass',
+    'grasa_corporal': 'body_fat_mass',
+    'contenido_mineral_oseo': 'bone_mineral_content',
+    'masa_proteica': 'protein_mass',
+    'masa_muscular': 'muscle_mass',
+    'porcentaje_musculo': 'muscle_percentage',
+    'porcentaje_agua_corporal': 'body_water_percentage',
+    'porcentaje_proteina': 'protein_percentage',
+    'porcentaje_mineral_oseo': 'bone_mineral_percentage',
+    'masa_muscular_esqueletica': 'skeletal_muscle_mass',
+    'calificacion_grasa_visceral': 'visceral_fat_rating',
+    'indice_metabolico_basal': 'basal_metabolic_rate',
+    'estimacion_relacion_cintura_cadera': 'waist_hip_ratio_estimate',
+    'edad_corporal': 'body_age',
+    'peso_corporal_sin_grasa': 'fat_free_body_weight'
+}
+
+# Reading configuration files
+with open("config/config.json", "r", encoding="utf-8") as f:
     config = json.load(f)
 
-# obtener la ruta del archivo desde config
+with open("config/percentage_color.json", "r", encoding="utf-8") as f:
+    metrics_config = json.load(f)
+
+with open("config/units.json", "r", encoding="utf-8") as f:
+    units_config = json.load(f)
+
+# Get file path from config
 csv_file_path = config.get("csv_file_path", "")
 google_sheets_url = config.get("google_sheets_url", "")
 
-# Utilidades de color (Moverlas arriba para disponibilidad global)
-mapa_colores = config.get("colors", config.get("colores", {}))
-status_to_hex = {v: k for k, v in mapa_colores.items()}
+def get_metric_style(metric, value):
+    if pd.isna(value): return "gray", "N/A"
+    
+    # Normalize metric name to look up in config
+    clean_metric = metric.lower().replace(" ", "_")
+    for m_key in metrics_config["metrics"]:
+        if m_key in clean_metric or clean_metric in m_key:
+            bands = metrics_config["metrics"][m_key].get("color_bands", [])
+            for band in bands:
+                m_min = band.get("min")
+                m_max = band.get("max")
+                
+                low_match = (m_min is None or value >= m_min)
+                high_match = (m_max is None or value <= m_max)
+                
+                if low_match and high_match:
+                    return band.get("color", "gray"), band.get("level", "Unknown")
+    return "gray", "Unknown"
 
-def obtener_color_global(valor, config_dict, default_color="gray"):
-    if not config_dict or pd.isna(valor): return default_color
-    for status, rango_str in config_dict.items():
-        try:
-            partes = rango_str.split('-')
-            if len(partes) == 2 and float(partes[0]) <= valor <= float(partes[1]):
-                c_hex = status_to_hex.get(status)
-                return c_hex if c_hex else default_color
-        except Exception:
-            pass
-    return default_color
+def create_gauge(value, title, metric_key):
+    # Get metric configuration
+    m_config = metrics_config["metrics"].get(metric_key, {})
+    bands = m_config.get("color_bands", [])
+    unit = m_config.get("unit", "")
 
-def crear_gauge(valor, titulo, config_dict, unidad=""):
-    # Obtener el rango máximo posible
-    if not config_dict:
-        max_val = 100
-    else:
-        # Extraer el valor máximo de los rangos
-        valores = []
-        for v in config_dict.values():
-            try:
-                valores.extend([float(x) for x in v.split('-')])
-            except: pass
-        max_val = max(valores) if valores else 100
+    # Determine maximum range
+    limit_values = []
+    for b in bands:
+        if b.get("min") is not None: limit_values.append(b["min"])
+        if b.get("max") is not None: limit_values.append(b["max"])
+    max_val = max(limit_values) * 1.1 if limit_values else 100
 
-    # Crear los pasos de color
+    # Create steps
     steps = []
-    if config_dict:
-        for status, rango in config_dict.items():
-            try:
-                min_r, max_r = [float(x) for x in rango.split('-')]
-                c_hex = status_to_hex.get(status, "gray")
-                steps.append({'range': [min_r, max_r], 'color': c_hex})
-            except: pass
+    for b in bands:
+        m_min = b.get("min") if b.get("min") is not None else 0
+        m_max = b.get("max") if b.get("max") is not None else max_val
+        steps.append({'range': [m_min, m_max], 'color': b.get("color", "gray")})
 
     fig = go.Figure(go.Indicator(
         mode = "gauge+number",
-        value = valor,
-        title = {'text': titulo, 'font': {'size': 18}},
-        number = {'suffix': unidad, 'font': {'size': 24, 'color': "white"}},
+        value = value,
+        title = {'text': title, 'font': {'size': 18}},
+        number = {'suffix': f" {unit}", 'font': {'size': 24, 'color': "white"}},
         gauge = {
             'axis': {'range': [None, max_val], 'tickwidth': 1, 'tickcolor': "white"},
             'bar': {'color': "white", 'thickness': 0.2},
@@ -72,84 +101,80 @@ def crear_gauge(valor, titulo, config_dict, unidad=""):
             'threshold': {
                 'line': {'color': "white", 'width': 4},
                 'thickness': 0.75,
-                'value': valor
+                'value': value
             }
         }
     ))
     fig.update_layout(height=230, margin=dict(l=30, r=30, t=50, b=20), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
     return fig
 
-def añadir_bandas_salud(fig, metrica, config):
-    # Buscar configuración para la métrica
-    nombres_posibles = [f"calificacion_{metrica}", metrica]
-    if metrica.startswith("calificacion_"):
-        nombres_posibles.append(metrica.replace("calificacion_grasa_visceral", "calificacion_grasa_viscera"))
+def add_health_bands(fig, metric):
+    m_config = metrics_config["metrics"].get(metric)
+    if not m_config: return fig
     
-    metric_config = None
-    for key in nombres_posibles:
-        if config.get(key):
-            metric_config = config.get(key)
-            break
-    
-    if metric_config:
-        for status, rango in metric_config.items():
-            try:
-                min_r, max_r = [float(x) for x in rango.split('-')]
-                c_hex = status_to_hex.get(status)
-                if c_hex:
-                    fig.add_hrect(y0=min_r, y1=max_r, fillcolor=c_hex, opacity=0.1, line_width=0, layer="below")
-            except: pass
+    for band in m_config.get("color_bands", []):
+        m_min = band.get("min")
+        m_max = band.get("max")
+        color = band.get("color")
+        if color:
+            # If min or max is None, we use extreme values for visualization
+            y0 = m_min if m_min is not None else -1000
+            y1 = m_max if m_max is not None else 1000
+            fig.add_hrect(y0=y0, y1=y1, fillcolor=color, opacity=0.1, line_width=0, layer="below")
     return fig
 
-# Función para cargar y limpiar datos
-@st.cache_data(ttl=600)  # Limpiar cache cada 10 mins (ideal para GSheets)
+# Function to load and clean data
+@st.cache_data(ttl=600)  # Clear cache every 10 mins (ideal for GSheets)
 def load_data():
     try:
-        # Priorizar Google Sheets si está configurado
-        if google_sheets_url and "AQUI_TU_ID" not in google_sheets_url:
+        # Prioritize Google Sheets if configured
+        if google_sheets_url and "YOUR_ID_HERE" not in google_sheets_url:
             conn = st.connection("gsheets", type=GSheetsConnection)
             df = conn.read(spreadsheet=google_sheets_url)
-            df = df.dropna(how='all') # Limpiar filas totalmente vacías
+            df = df.dropna(how='all') # Clean totally empty rows
         else:
-            # Leer el CSV local
-            df = pd.read_csv(csv_file_path)
+            # Read local CSV
+            df = pd.read_csv(csv_file_path, encoding="utf-8")
         
-        # Convertir la fecha. En el CSV está como dd/mm/yyyy
-        df['fecha'] = pd.to_datetime(df['fecha'], format='%d/%m/%Y', errors='coerce')
+        # Rename columns to English
+        df = df.rename(columns=COL_MAPPING)
+
+        # Convert date. In the CSV it's as dd/mm/yyyy
+        df['date'] = pd.to_datetime(df['date'], format='%d/%m/%Y', errors='coerce')
         
-        # Ordenar por fecha cronológicamente
-        df = df.sort_values(by='fecha')
+        # Sort by date chronologically
+        df = df.sort_values(by='date')
         
-        # Resetear el índice
+        # Reset index
         df = df.reset_index(drop=True)
         
         return df
     except Exception as e:
-        st.error(f"Error al cargar el archivo de datos: {e}")
+        st.error(f"Error loading data file: {e}")
         return None
 
 df = load_data()
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.header("⚙️ Controles")
-    if st.button("🔄 Sincronizar Datos"):
+    st.header("⚙️ Controls")
+    if st.button("🔄 Sync Data"):
         st.cache_data.clear()
         st.rerun()
 
     st.markdown("---")
     
     if df is not None and not df.empty:
-        st.subheader("📅 Filtro de Fecha")
-        min_date = df['fecha'].min().date()
-        max_date = df['fecha'].max().date()
-        # Por defecto mostrar el último mes
+        st.subheader("📅 Date Filter")
+        min_date = df['date'].min().date()
+        max_date = df['date'].max().date()
+        # By default show the last month
         default_start_date = max(min_date, max_date - datetime.timedelta(days=30))
 
         start_date_7_day = max_date - datetime.timedelta(days=7)
         start_date_30_day = max_date - datetime.timedelta(days=15)
         
-        date_range_7 = st.date_input("Selecciona el rango:", (start_date_7_day, max_date), min_value=min_date, max_value=max_date)
+        date_range_7 = st.date_input("Select range:", (start_date_7_day, max_date), min_value=min_date, max_value=max_date)
         #date_range_30 = st.date_input("Selecciona el rango:", (start_date_30_day, max_date), min_value=min_date, max_value=max_date)
         
         if len(date_range_7) == 2:
@@ -163,516 +188,385 @@ with st.sidebar:
         #    start_date_30 = end_date_30 = date_range_30[0]
             
         st.markdown("---")
-        st.subheader("📊 Filtros de Gráficas")
+        st.subheader("📊 Chart Filters")
         numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
         
-        default_metrics_1 = [m for m in ['masa_muscular'] if m in numeric_columns]
-        selected_metrics_1 = st.multiselect("Gráfica 1 (Absolutos):", options=numeric_columns, default=default_metrics_1)
+        default_metrics_1 = [m for m in ['muscle_mass'] if m in numeric_columns]
+        selected_metrics_1 = st.multiselect("Chart 1 (Absolute):", options=numeric_columns, default=default_metrics_1)
 
-        default_metrics_grasa = [m for m in ['grasa_corporal'] if m in numeric_columns]
-        selected_metrics_grasa = st.multiselect("Gráfica 2 (Absolutos):", options=numeric_columns, default=default_metrics_grasa)
+        default_metrics_fat = [m for m in ['body_fat_mass'] if m in numeric_columns]
+        selected_metrics_fat = st.multiselect("Chart 2 (Absolute):", options=numeric_columns, default=default_metrics_fat)
         
-        default_metrics_2 = [m for m in ['porcentaje_musculo', 'porcentaje_grasa_corporal'] if m in numeric_columns]
-        selected_metrics_2 = st.multiselect("Gráfica 2 (Porcentajes):", options=numeric_columns, default=default_metrics_2)
+        default_metrics_2 = [m for m in ['muscle_percentage', 'body_fat_percentage'] if m in numeric_columns]
+        selected_metrics_2 = st.multiselect("Chart 2 (Percentages):", options=numeric_columns, default=default_metrics_2)
 
-        default_metrics_3 = [m for m in ['calificacion_grasa_visceral', 'edad_corporal'] if m in numeric_columns]
-        selected_metrics_3 = st.multiselect("Gráfica 3 (Evolución):", options=numeric_columns, default=default_metrics_3)
+        default_metrics_3 = [m for m in ['visceral_fat_rating', 'body_age'] if m in numeric_columns]
+        selected_metrics_3 = st.multiselect("Chart 3 (Evolution):", options=numeric_columns, default=default_metrics_3)
         
         st.markdown("---")
-        st.subheader("💡 Comparativa de Periodos")
-        modo_comparativo = st.checkbox("Activar Periodo de Comparación")
-        if modo_comparativo:
+        st.subheader("💡 Period Comparison")
+        comparison_mode = st.checkbox("Activate Comparison Period")
+        if comparison_mode:
             min_c = min_date
             max_c = max_date
-            comp_range = st.date_input("Periodo 2 (Comparativo):", (start_date_7 - datetime.timedelta(days=7), start_date_7 - datetime.timedelta(days=1)), min_value=min_c, max_value=max_c)
+            comp_range = st.date_input("Period 2 (Comparative):", (start_date_7 - datetime.timedelta(days=7), start_date_7 - datetime.timedelta(days=1)), min_value=min_c, max_value=max_c)
             if len(comp_range) == 2:
                 start_comp, end_comp = comp_range
             else:
                 start_comp = end_comp = comp_range[0]
             
     else:
-        st.warning("⚠️ No hay datos cargados.")
+        st.warning("⚠️ No data loaded.")
     
     st.markdown("---")
-    st.subheader("🎯 Objetivos")
-    default_target = config['objetivo_peso']
-    peso_objetivo = st.number_input("Peso Objetivo (kg):", value=float(default_target), step=0.1)
+    st.subheader("🎯 Objectives")
+    default_target = config['weight_target']
+    weight_target = st.number_input("Target Weight (kg):", value=float(default_target), step=0.1)
 
-# --- TÍTULO PRINCIPAL ---
-st.title("⚖️ Dashboard de Análisis Corporal")
-st.markdown("Visualización e inteligencia de métricas recolectadas de tu báscula a lo largo del tiempo.")
+# --- MAIN TITLE ---
+st.title("⚖️ Body Composition Analysis Dashboard")
+st.markdown("Visualization and intelligence of metrics collected from your scale over time.")
 
 if df is not None and not df.empty:
     
-    # Filtro de fechas aplicado al DF
-    mask = (df['fecha'].dt.date >= start_date_7) & (df['fecha'].dt.date <= end_date_7)
+    # Date filter applied to DF
+    mask = (df['date'].dt.date >= start_date_7) & (df['date'].dt.date <= end_date_7)
     df_filtered = df.loc[mask]
 
-    if modo_comparativo:
-        mask_comp = (df['fecha'].dt.date >= start_comp) & (df['fecha'].dt.date <= end_comp)
+    if comparison_mode:
+        mask_comp = (df['date'].dt.date >= start_comp) & (df['date'].dt.date <= end_comp)
         df_comp = df.loc[mask_comp]
     else:
         df_comp = pd.DataFrame()
 
-    # --- PESTAÑAS (TABS) ---
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🎯 Resumen y Logros", "📈 Masa Muscular","📈 Grasa Corporal", "🥧 Composición Actual", "📋 Histórico"])
+    # --- TABS ---
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🎯 Summary & Achievements", "📈 Muscle Mass","📈 Body Fat", "🥧 Current Composition", "📋 History"])
     
     with tab1:
-        st.header("Resumen del Periodo")
-        st.caption(f"De {start_date_7.strftime('%d/%m/%Y')} a {end_date_7.strftime('%d/%m/%Y')}")
+        st.header("Period Summary")
+        st.caption(f"From {start_date_7.strftime('%d/%m/%Y')} to {end_date_7.strftime('%d/%m/%Y')}")
         
         if df_filtered.empty:
-            st.info("No hay datos en el rango de fechas seleccionado.")
+            st.info("No data in the selected date range.")
         else:
             first_record = df_filtered.iloc[0]
             last_record = df_filtered.iloc[-1]
             
-            # --- Texto Inteligente ---
-            dias_dif = (last_record['fecha'] - first_record['fecha']).days
-            delta_peso = last_record['peso'] - first_record['peso']
-            delta_grasa = last_record['grasa_corporal'] - first_record['grasa_corporal']
-            delta_musculo = last_record['masa_muscular'] - first_record['masa_muscular']
+            # --- Smart Summary Text ---
+            days_diff = (last_record['date'] - first_record['date']).days
+            delta_weight = last_record['weight'] - first_record['weight']
+            delta_fat = last_record['body_fat_mass'] - first_record['body_fat_mass']
+            delta_muscle = last_record['muscle_mass'] - first_record['muscle_mass']
             
-            texto_resumen = f"En los últimos **{dias_dif} días** analizados, "
-            if delta_peso < 0:
-                texto_resumen += f"has perdido **{abs(delta_peso):.1f} kg** de peso. "
-            elif delta_peso > 0:
-                texto_resumen += f"has ganado **{delta_peso:.1f} kg** de peso. "
+            summary_text = f"In the last **{days_diff} days** analyzed, "
+            if delta_weight < 0:
+                summary_text += f"you have lost **{abs(delta_weight):.1f} kg** of weight. "
+            elif delta_weight > 0:
+                summary_text += f"you have gained **{delta_weight:.1f} kg** of weight. "
             else:
-                 texto_resumen += "has mantenido tu peso estable. "
+                 summary_text += "your weight has remained stable. "
                 
-            if delta_grasa < 0:
-                texto_resumen += f"Tu grasa corporal disminuyó en **{abs(delta_grasa):.1f} kg** y "
-            elif delta_grasa > 0:
-                texto_resumen += f"Tu grasa corporal aumentó en **{delta_grasa:.1f} kg** y "
+            if delta_fat < 0:
+                summary_text += f"Your body fat decreased by **{abs(delta_fat):.1f} kg** and "
+            elif delta_fat > 0:
+                summary_text += f"Your body fat increased by **{delta_fat:.1f} kg** and "
             else:
-                 texto_resumen += f"Tu grasa corporal se mantuvo estable y "
+                 summary_text += f"Your body fat remained stable and "
                 
-            if delta_musculo > 0:
-                texto_resumen += f"te felicitamos porque tu masa muscular se incrementó en **{delta_musculo:.1f} kg**. ¡Sigue así! 💪"
-            elif delta_musculo < 0:
-                texto_resumen += f"perdiste **{abs(delta_musculo):.1f} kg** de masa muscular. ¡No descuides el deporte! 🥩🍗"
+            if delta_muscle > 0:
+                summary_text += f"congratulations because your muscle mass increased by **{delta_muscle:.1f} kg**. Keep it up! 💪"
+            elif delta_muscle < 0:
+                summary_text += f"you lost **{abs(delta_muscle):.1f} kg** of muscle mass. Don't neglect your workout! 🥩🍗"
             else:
-                texto_resumen += f"tu masa muscular se mantuvo."
+                summary_text += f"your muscle mass remained stable."
                 
-            st.success(texto_resumen)
+            st.success(summary_text)
             
             # --- KPIs ---
-            st.subheader("Métricas de Variación")
+            st.subheader("Variation Metrics")
             
-            def mostrar_metricas_periodo(curr_df, label="Actual"):
+            def show_period_metrics(curr_df, label="Actual"):
                 if curr_df.empty:
-                    st.info(f"Sin datos para {label}")
+                    st.info(f"No data for {label}")
                     return
                 first = curr_df.iloc[0]
                 last = curr_df.iloc[-1]
                 cols = st.columns(5)
-                cols[0].metric(f"Peso ({label})", f"{last['peso']:.1f}", f"{last['peso'] - first['peso']:.1f} kg", delta_color="inverse")
-                cols[1].metric(f"Grasa ({label})", f"{last['grasa_corporal']:.1f} kg", f"{last['grasa_corporal'] - first['grasa_corporal']:.1f} kg", delta_color="inverse")
-                cols[2].metric(f"Músculo ({label})", f"{last['masa_muscular']:.1f}", f"{last['masa_muscular'] - first['masa_muscular']:.1f} kg", delta_color="normal")
-                cols[3].metric("Edad Corp.", f"{last['edad_corporal']:.0f}", f"{last['edad_corporal'] - first['edad_corporal']:.0f} años", delta_color="inverse")
-                if 'calificacion_grasa_visceral' in curr_df.columns:
-                    cols[4].metric("G. Visceral", f"{last['calificacion_grasa_visceral']:.1f}", f"{last['calificacion_grasa_visceral'] - first['calificacion_grasa_visceral']:.1f}", delta_color="inverse")
+                
+                # Weight
+                color_p, _ = get_metric_style("weight", last['weight'])
+                cols[0].metric(f"Weight ({label})", f"{last['weight']:.1f}", f"{last['weight'] - first['weight']:.1f} kg", delta_color="inverse")
+                
+                # Fat
+                color_g, _ = get_metric_style("body_fat_mass", last['body_fat_mass'])
+                cols[1].metric(f"Fat ({label})", f"{last['body_fat_mass']:.1f} kg", f"{last['body_fat_mass'] - first['body_fat_mass']:.1f} kg", delta_color="inverse")
+                
+                # Muscle
+                color_m, _ = get_metric_style("muscle_mass", last['muscle_mass'])
+                cols[2].metric(f"Muscle ({label})", f"{last['muscle_mass']:.1f}", f"{last['muscle_mass'] - first['muscle_mass']:.1f} kg", delta_color="normal")
+                
+                # Age
+                cols[3].metric("Body Age", f"{last['body_age']:.0f}", f"{last['body_age'] - first['body_age']:.0f} years", delta_color="inverse")
+                
+                # Visceral
+                if 'visceral_fat_rating' in curr_df.columns:
+                    cols[4].metric("V. Fat", f"{last['visceral_fat_rating']:.1f}", f"{last['visceral_fat_rating'] - first['visceral_fat_rating']:.1f}", delta_color="inverse")
 
-            if modo_comparativo and not df_comp.empty:
-                st.markdown("**Periodo Principal**")
-                mostrar_metricas_periodo(df_filtered)
-                st.markdown("**Periodo Comparativo**")
-                mostrar_metricas_periodo(df_comp, "Comp.")
+            if comparison_mode and not df_comp.empty:
+                st.markdown("**Main Period**")
+                show_period_metrics(df_filtered)
+                st.markdown("**Comparison Period**")
+                show_period_metrics(df_comp, "Comp.")
             else:
-                mostrar_metricas_periodo(df_filtered)
+                show_period_metrics(df_filtered)
                 
             st.markdown("---")
 
-            # --- Medidores (Gauges) ---
-            st.subheader("🩺 Estado de Salud Actual (Gauges)")
+            # --- Health Gauges ---
+            st.subheader("🩺 Current Health Status (Gauges)")
             g_col1, g_col2, g_col3 = st.columns(3)
             
             with g_col1:
-                # Calculamos el IMC dinámicamente si tenemos la estatura en config
                 height = config.get("height")
-                if height and height > 0:
-                    imc_val = last_record['peso'] / (height ** 2)
-                    st.write(f"IMC Calculado (Estatura: {height}m)")
-                else:
-                    imc_val = last_record.get('imc', 0)
-                
-                # Configuración estándar para IMC si no hay en config
-                config_imc = config.get("calificacion_imc", {
-                    "por debajo": "10-18.5",
-                    "en rango": "18.5-25",
-                    "por encima": "25-30",
-                    "muy por encima": "30-35",
-                    "extremo": "35-50"
-                })
-                st.plotly_chart(crear_gauge(imc_val, "IMC", config_imc), use_container_width=True)
+                bmi_val = last_record['weight'] / (height ** 2) if height else last_record.get('bmi', 0)
+                st.plotly_chart(create_gauge(bmi_val, "BMI", "bmi"), width='stretch')
                 
             with g_col2:
-                visceral_val = last_record.get('calificacion_grasa_visceral', 0)
-                config_visc = config.get("calificacion_grasa_viscera", {})
-                st.plotly_chart(crear_gauge(visceral_val, "Grasa Visceral", config_visc), use_container_width=True)
+                visceral_val = last_record.get('visceral_fat_rating', 0)
+                st.plotly_chart(create_gauge(visceral_val, "Visceral Fat", "visceral_fat_rating"), width='stretch')
                 
             with g_col3:
-                musculo_val = last_record.get('porcentaje_musculo', 0)
-                config_musc = config.get("calificacion_masa_muscular", {})
-                st.plotly_chart(crear_gauge(musculo_val, "Masa Muscular", config_musc, "%"), use_container_width=True)
+                muscle_val = last_record.get('muscle_percentage', 0)
+                st.plotly_chart(create_gauge(muscle_val, "Muscle Mass (%)", "muscle_percentage"), width='stretch')
 
             st.markdown("---")
 
-            # --- Proyección y Metas ---
-            if peso_objetivo > 0 and not df_filtered.empty:
-                st.subheader("🎯 Progreso hacia el Objetivo")
+            # --- Projections and Goals ---
+            if weight_target > 0 and not df_filtered.empty:
+                st.subheader("🎯 Progress Towards Goal")
                 
-                # Datos para la regresión (usamos fechas como números)
-                x = (df_filtered['fecha'] - df_filtered['fecha'].min()).dt.days.values
-                y = df_filtered['peso'].values
+                # Data for regression (dates as numbers)
+                x = (df_filtered['date'] - df_filtered['date'].min()).dt.days.values
+                y = df_filtered['weight'].values
                 
                 if len(x) > 1:
-                    # Ajuste lineal: y = mx + c
+                    # Linear fit: y = mx + c
                     m, c = np.polyfit(x, y, 1)
                     
-                    # ¿Cuándo llegaremos al peso objetivo? peso_obj = m*x + c  => x = (peso_obj - c) / m
+                    # When will we reach the target weight? weight_obj = m*x + c => x = (weight_obj - c) / m
                     if m != 0:
-                        days_to_target = (peso_objetivo - c) / m
-                        if days_to_target > x[-1]: # Si la meta está en el futuro
-                            target_date = df_filtered['fecha'].min() + datetime.timedelta(days=days_to_target)
+                        days_to_target = (weight_target - c) / m
+                        if days_to_target > x[-1]: # If the goal is in the future
+                            target_date = df_filtered['date'].min() + datetime.timedelta(days=days_to_target)
                             
                             col_goal1, col_goal2 = st.columns([2, 1])
                             with col_goal1:
-                                days_left = (target_date - last_record['fecha']).days
+                                days_left = (target_date - last_record['date']).days
                                 if days_left > 0:
-                                    st.info(f"📅 **Fecha Estimada:** {target_date.strftime('%d/%m/%Y')} (en aprox. {days_left} días)")
+                                    st.info(f"📅 **Estimated Date:** {target_date.strftime('%d/%m/%Y')} (in approx. {days_left} days)")
                                 else:
-                                    st.success("🎉 ¡Objetivo alcanzado según la tendencia!")
+                                    st.success("🎉 Goal reached according to trend!")
                             
                             with col_goal2:
-                                # Calcular progreso
-                                peso_inicial_periodo = df_filtered.iloc[0]['peso']
-                                total_a_perder = peso_inicial_periodo - peso_objetivo
-                                ya_perdido = peso_inicial_periodo - last_record['peso']
+                                # Calculate progress
+                                initial_weight_period = df_filtered.iloc[0]['weight']
+                                total_to_lose = initial_weight_period - weight_target
+                                already_lost = initial_weight_period - last_record['weight']
                                 
-                                if total_a_perder > 0:
-                                    progreso = min(max(ya_perdido / total_a_perder, 0.0), 1.0)
-                                    st.write(f"Progreso: {progreso*100:.1f}%")
-                                    st.progress(progreso)
+                                if total_to_lose > 0:
+                                    progress = min(max(already_lost / total_to_lose, 0.0), 1.0)
+                                    st.write(f"Progress: {progress*100:.1f}%")
+                                    st.progress(progress)
                         else:
-                            if last_record['peso'] <= peso_objetivo:
-                                st.success(f"🏆 ¡Has superado tu objetivo de {peso_objetivo} kg! (Peso actual: {last_record['peso']:.1f} kg)")
+                            if last_record['weight'] <= weight_target:
+                                st.success(f"🏆 You have exceeded your goal of {weight_target} kg! (Current weight: {last_record['weight']:.1f} kg)")
                             else:
-                                st.warning("📉 La tendencia actual no se dirige hacia tu objetivo. ¡Tú puedes ajustarlo!")
+                                st.warning("📉 The current trend is not heading towards your goal. You can adjust it!")
                 else:
-                    st.info("Necesitas al menos dos registros en este periodo para calcular la proyección.")
+                    st.info("You need at least two records in this period to calculate the projection.")
 
             st.markdown("---")
 
-            # --- Inteligencia de Datos: Perspectivas y Patrones ---
-            st.subheader("🧠 Perspectivas de Datos")
+            # --- Data Insights: Perspectives and Patterns ---
+            st.subheader("🧠 Data Insights")
             
-            # 1. Alertas por Variaciones Bruscas
+            # 1. Alerts for Sudden Variations
             if len(df_filtered) >= 2:
                 last_val = df_filtered.iloc[-1]
                 prev_val = df_filtered.iloc[-2]
                 
-                # Alerta: Pérdida significativa de músculo
-                diff_musc_last = last_val['masa_muscular'] - prev_val['masa_muscular']
+                # Alert: Significant muscle loss
+                diff_musc_last = last_val['muscle_mass'] - prev_val['muscle_mass']
                 if diff_musc_last < -0.5:
-                    st.warning(f"⚠️ **Alerta de Músculo:** Has perdido {abs(diff_musc_last):.1f} kg de masa muscular desde el último registro. ¡Asegúrate de consumir suficiente proteína!")
+                    st.warning(f"⚠️ **Muscle Alert:** You have lost {abs(diff_musc_last):.1f} kg of muscle mass since the last record. Ensure you consume enough protein!")
                 
-                # Alerta: Aumento significativo de grasa
-                diff_grasa_last = last_val['grasa_corporal'] - prev_val['grasa_corporal']
-                if diff_grasa_last > 0.5:
-                    st.error(f"⚠️ **Alerta de Grasa:** Aumento de {diff_grasa_last:.1f} kg de grasa corporal. ¡Revisa tu actividad física!")
+                # Alert: Significant fat increase
+                diff_fat_last = last_val['body_fat_mass'] - prev_val['body_fat_mass']
+                if diff_fat_last > 0.5:
+                    st.error(f"⚠️ **Fat Alert:** Increase of {diff_fat_last:.1f} kg of body fat. Review your physical activity!")
 
-            # 2. Gráfico de Patrones por Día de la Semana
-            st.markdown("**Patrones Semanales (Promedio por día)**")
+            # 2. Pattern Chart by Day of the Week
+            st.markdown("**Weekly Patterns (Average per day)**")
             df_patterns = df_filtered.copy()
-            df_patterns['dia_semana'] = df_patterns['fecha'].dt.day_name()
-            # Ordenar días correctamente
-            dias_orden = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-            df_patterns['dia_semana'] = pd.Categorical(df_patterns['dia_semana'], categories=dias_orden, ordered=True)
+            df_patterns['day_of_week'] = df_patterns['date'].dt.day_name()
+            # Sort days correctly
+            days_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+            df_patterns['day_of_week'] = pd.Categorical(df_patterns['day_of_week'], categories=days_order, ordered=True)
             
-            promedio_dia = df_patterns.groupby('dia_semana', observed=True)[['peso', 'grasa_corporal']].mean().reset_index()
+            daily_average = df_patterns.groupby('day_of_week', observed=True)[['weight', 'body_fat_mass']].mean().reset_index()
             
-            fig_patterns = px.bar(promedio_dia, x='dia_semana', y='peso', 
-                                title="Media de Peso por Día de la Semana",
-                                color='peso', color_continuous_scale='Blues')
+            fig_patterns = px.bar(daily_average, x='day_of_week', y='weight', 
+                                title="Average Weight by Day of the Week",
+                                color='weight', color_continuous_scale='Blues')
             fig_patterns.update_layout(height=350, xaxis_title="", coloraxis_showscale=False)
-            st.plotly_chart(fig_patterns, use_container_width=True)
+            st.plotly_chart(fig_patterns, width='stretch')
             
             st.markdown("---")
             
-            # --- Logros ---
-            st.subheader("🏆 Comparativa: Primer Registro vs Actual")
-            record_inicial = df.iloc[0]
+            # --- Achievements ---
+            st.subheader("🏆 Comparative: First Record vs Current")
+            initial_record = df.iloc[0]
             
-            diff_peso_total = last_record['peso'] - record_inicial['peso']
-            diff_grasa_total = last_record['grasa_corporal'] - record_inicial['grasa_corporal']
-            diff_musculo_total = last_record['masa_muscular'] - record_inicial['masa_muscular']
+            diff_weight_total = last_record['weight'] - initial_record['weight']
+            diff_fat_total = last_record['body_fat_mass'] - initial_record['body_fat_mass']
+            diff_muscle_total = last_record['muscle_mass'] - initial_record['muscle_mass']
             
             c_hist1, c_hist2, c_hist3 = st.columns(3)
             with c_hist1:
-                st.metric("Cambio Peso Total", f"{last_record['peso']:.1f} kg", f"{diff_peso_total:.1f} kg (desde inicio)", delta_color="inverse")
+                st.metric("Total Weight Change", f"{last_record['weight']:.1f} kg", f"{diff_weight_total:.1f} kg (since start)", delta_color="inverse")
             with c_hist2:
-                st.metric("Cambio Grasa Total", f"{last_record['grasa_corporal']:.1f} kg", f"{diff_grasa_total:.1f} kg (desde inicio)", delta_color="inverse")
+                st.metric("Total Fat Change", f"{last_record['body_fat_mass']:.1f} kg", f"{diff_fat_total:.1f} kg (since start)", delta_color="inverse")
             with c_hist3:
-                st.metric("Cambio Músculo Total", f"{last_record['masa_muscular']:.1f} kg", f"{diff_musculo_total:.1f} kg (desde inicio)", delta_color="normal")
+                st.metric("Total Muscle Change", f"{last_record['muscle_mass']:.1f} kg", f"{diff_muscle_total:.1f} kg (since start)", delta_color="normal")
 
             st.markdown("---")
-            st.subheader("🏆 Récords Históricos (Wall of Fame)")
-            st.caption("Estos son tus mejores hitos desde que tienes registros en la base de datos.")
-            record_peso_min = df.loc[df['peso'].idxmin()]
-            record_grasa_min = df.loc[df['grasa_corporal'].idxmin()]
-            record_musculo_max = df.loc[df['masa_muscular'].idxmax()]
+            st.subheader("🏆 Historical Records (Wall of Fame)")
+            st.caption("These are your best milestones since you have records in the database.")
+            record_weight_min = df.loc[df['weight'].idxmin()]
+            record_fat_min = df.loc[df['body_fat_mass'].idxmin()]
+            record_muscle_max = df.loc[df['muscle_mass'].idxmax()]
             
             col_a, col_b, col_c = st.columns(3)
             with col_a:
-                st.info(f"**Menor Peso Alcanzado**\n\n### {record_peso_min['peso']:.1f} kg\n*(Registrado el {record_peso_min['fecha'].strftime('%d/%m/%Y')})*")
+                st.info(f"**Lowest Weight Reached**\n\n### {record_weight_min['weight']:.1f} kg\n*(Recorded on {record_weight_min['date'].strftime('%d/%m/%Y')})*")
             with col_b:
-                st.info(f"**Mínima Grasa Corporal**\n\n### {record_grasa_min['grasa_corporal']:.1f} kg\n*(Registrado el {record_grasa_min['fecha'].strftime('%d/%m/%Y')})*")
+                st.info(f"**Minimum Body Fat**\n\n### {record_fat_min['body_fat_mass']:.1f} kg\n*(Recorded on {record_fat_min['date'].strftime('%d/%m/%Y')})*")
             with col_c:
-                st.info(f"**Máxima Masa Muscular**\n\n### {record_musculo_max['masa_muscular']:.1f} kg\n*(Registrado el {record_musculo_max['fecha'].strftime('%d/%m/%Y')})*")
+                st.info(f"**Maximum Skeletal Muscle**\n\n### {record_muscle_max['skeletal_muscle_mass']:.1f} kg\n*(Recorded on {record_muscle_max['date'].strftime('%d/%m/%Y')})*")
 
+            st.markdown("---")
+            st.subheader("📊 Period Metrics")
+            
+            # Calculate period averages
+            avg_weight = df_filtered['weight'].mean()
+            avg_fat = df_filtered['body_fat_mass'].mean()
+            avg_muscle = df_filtered['muscle_mass'].mean()
+            avg_visceral = df_filtered['visceral_fat_rating'].mean()
+            
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                st.metric("Average Weight", f"{avg_weight:.1f} kg")
+            with c2:
+                st.metric("Average Body Fat", f"{avg_fat:.1f} kg")
+            with c3:
+                st.metric("Average Muscle", f"{avg_muscle:.1f} kg")
     with tab2:
-        st.header("📈 Evolución ultimos 7 días")
+        st.header("📈 Muscle Mass Evolution")
         if df_filtered.empty:
-            st.warning("No hay datos en el rango seleccionado.")
+            st.warning("No data in the selected range.")
         else:
-            # --- Gráfico 1 ---
-            if selected_metrics_1:
-                # Calcular media móvil de 7 días al DF original pero filtrando luego
-                df_ma = df.copy()
-                for m in selected_metrics_1:
-                    df_ma[f"{m}_MA7"] = df_ma[m].rolling(window=7, min_periods=1).mean()
-                    
-                # Aplicamos el filtro de fecha
-                df_ma_filtered = df_ma.loc[mask]
-                
-                # Crear la gráfica con Plotly Graph Objects para mayor control multicapa
-                fig_sem_1 = go.Figure()
-                
-                # Definimos paleta de colores nativa
-                colors = px.colors.qualitative.Plotly
-                
-                for i, m in enumerate(selected_metrics_1):
-                    color = colors[i % len(colors)]
-                    # Puntos reales y linea tenue
-                    fig_sem_1.add_trace(go.Scatter(x=df_ma_filtered['fecha'], y=df_ma_filtered[m],
-                                            mode='lines+markers', name=m,
-                                            line=dict(color=color, width=2, dash='dot'), opacity=0.4 ))
-                    # Media Móvil (Tendencia)
-                    fig_sem_1.add_trace(go.Scatter(x=df_ma_filtered['fecha'], y=df_ma_filtered[f"{m}_MA7"],
-                                            mode='lines', name=f"{m} (Tendencia 7d)",
-                                            line=dict(color=color, width=3)))
+            # Chart 1: Absolute evolution (Kg) with MA7 Trend
+            # Calculate MA7
+            df_plot = df_filtered.copy()
+            df_plot['muscle_mass_MA7'] = df_plot['muscle_mass'].rolling(window=7, min_periods=1).mean()
+            
+            fig1 = go.Figure()
+            # Real points
+            fig1.add_trace(go.Scatter(x=df_plot['date'], y=df_plot['muscle_mass'],
+                                     mode='markers', name='Real Value',
+                                     marker=dict(color='lightgray', size=8), opacity=0.6))
+            # Trend
+            fig1.add_trace(go.Scatter(x=df_plot['date'], y=df_plot['muscle_mass_MA7'],
+                                     mode='lines+markers', name='Trend (7d)',
+                                     line=dict(color='#4CAF50', width=3)))
+            
+            fig1.update_layout(title="Muscle Mass Evolution (Kg) - 7-day Trend",
+                               hovermode="x unified", height=400)
+            st.plotly_chart(fig1, width='stretch')
 
-                fig_sem_1.update_layout(title="Evolución masa muscular",
-                                  hovermode="x unified", xaxis_title="",
-                                  legend_title="Masa Muscular",
-                                  legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center"))
-                
-                # Añadir bandas si solo hay una métrica seleccionada para evitar saturación
-                if len(selected_metrics_1) == 1:
-                    fig_sem_1 = añadir_bandas_salud(fig_sem_1, selected_metrics_1[0], config)
-                
-                st.plotly_chart(fig_sem_1, use_container_width=True,key="plot_for_week_data_1")
-            else:
-                st.info("👆 Selecciona métricas para el Gráfico 1 en el menú lateral.")
-
-            # --- Gráfico 2 ---
-            if selected_metrics_2:
-                df_melted_2 = df_filtered.melt(id_vars=['fecha'], value_vars=selected_metrics_grasa, # selected_metrics_2, 
-                                    var_name='Kilos', value_name='Valor')
-                fig_sem_2 = px.line(df_melted_2, x='fecha', y='Valor', color='Kilos', markers=True,
-                               title="Evolución grasa corporal",
-                               labels={'fecha': 'Fecha', 'Valor': 'Kg'} )
-                fig_sem_2.update_layout(hovermode="x unified", xaxis_title="",legend_title="Kilos",legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center"))
-                
-                if len(selected_metrics_2) == 1:
-                    fig_sem_2 = añadir_bandas_salud(fig_sem_2, selected_metrics_2[0], config)
-                    
-                st.plotly_chart(fig_sem_2, use_container_width=True,key="plot_for_week_data_2")
-            else:
-                st.info("👆 Selecciona métricas para el Gráfico 2 en el menú lateral.")
-                
-            # --- Gráfico 3 ---
-            if selected_metrics_3:
-                df_melted_3 = df_filtered.melt(id_vars=['fecha'], value_vars=selected_metrics_3, 
-                                    var_name='Métrica', value_name='Valor')
-                
-                fig_sem_3 = px.bar(df_melted_3, x='fecha', y='Valor', color='Métrica', barmode='group',
-                              title="Evolución temporal de Calificaciones Categóricas",
-                              labels={'fecha': 'Fecha', 'Valor': 'Unidad'})
-                
-                for trace in fig_sem_3.data:    
-                    metric_name = trace.name
-                    colors_bar = []
-                    
-                    if metric_name == 'edad_corporal':
-                        if "fecha_nacimiento" in config:
-                            fecha_nac = pd.to_datetime(config["fecha_nacimiento"])
-                            edad_real = (df_filtered['fecha'] - fecha_nac).dt.days / 365.25
-                            for y_v, e_v in zip(trace.y, edad_real):
-                                if pd.isna(y_v): colors_bar.append("gray")
-                                elif y_v < e_v: colors_bar.append("green")
-                                else: colors_bar.append("red")
-                            trace.marker.color = colors_bar
-
-                    else:
-                        nombres_posibles = [f"calificacion_{metric_name}", metric_name]
-                        if metric_name.startswith("calificacion_"):
-                            nombres_posibles.append(metric_name.replace("calificacion_grasa_visceral", "calificacion_grasa_viscera"))
-                        else:
-                            nombres_posibles.append(f"calificacion_{metric_name}".replace("calificacion_grasa_visceral", "calificacion_grasa_viscera"))
-                            
-                        metric_config = None
-                        for key in nombres_posibles:
-                            if config.get(key):
-                                metric_config = config.get(key)
-                                break
-                                
-                        if metric_config:
-                            for y_v in trace.y:
-                                colors_bar.append(obtener_color_global(y_v, metric_config, "gray"))
-                            trace.marker.color = colors_bar
-                
-                fig_sem_3.update_layout(hovermode="x unified", xaxis_title="",legend_title="Calificación",legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center"))
-                st.plotly_chart(fig_sem_3, use_container_width=True,key="plot_for_week_data_3")
-            else:
-                st.info("👆 Selecciona métricas para el Gráfico 3 en el menú lateral.")
-
+            # Chart 2: Percentage and Color
+            # Assign colors per point
+            point_colors = [get_metric_style("muscle_percentage", v)[0] for v in df_plot['muscle_percentage']]
+            
+            fig2 = px.bar(df_plot, x='date', y='muscle_percentage',
+                          title="Muscle Percentage Distribution (%)",
+                          labels={'muscle_percentage': '% Muscle'})
+            fig2.update_traces(marker_color=point_colors)
+            fig2 = add_health_bands(fig2, "muscle_percentage")
+            fig2.update_layout(height=400)
+            st.plotly_chart(fig2, width='stretch')
 
     with tab3:
-        st.header("📈 Evolución Temporal Mensual")
+        st.header("📈 Body Fat Evolution")
         if df_filtered.empty:
-            st.warning("No hay datos en el rango seleccionado.")
+            st.warning("No data in the selected range.")
         else:
-            # --- Gráfico 1 ---
-            if selected_metrics_grasa:
-                # Calcular media móvil de 30 días al DF original pero filtrando luego
-                df_ma = df.copy()
-                for m in selected_metrics_grasa:
-                    df_ma[f"{m}_MA30"] = df_ma[m].rolling(window=30, min_periods=1).mean()
-                    
-                # Aplicamos el filtro de fecha
-                df_ma_filtered = df_ma.loc[mask]
-                
-                # Crear la gráfica con Plotly Graph Objects para mayor control multicapa
-                fig_mes_1 = go.Figure()
-                
-                # Definimos paleta de colores nativa
-                colors = px.colors.qualitative.Plotly
-                
-                for i, m in enumerate(selected_metrics_grasa):
-                    color = colors[i % len(colors)]
-                    # Puntos reales y linea tenue
-                    fig_mes_1.add_trace(go.Scatter(x=df_ma_filtered['fecha'], y=df_ma_filtered[m],
-                                            mode='lines+markers', name=m,
-                                            line=dict(color=color, width=2, dash='dot'), opacity=0.4))
-                    # Media Móvil (Tendencia)
-                    fig_mes_1.add_trace(go.Scatter(x=df_ma_filtered['fecha'], y=df_ma_filtered[f"{m}_MA30"],
-                                            mode='lines', name=f"{m} (Tendencia 30d)",
-                                            line=dict(color=color, width=3)))
+            # Chart 1: Absolute evolution (Kg) with MA7 Trend
+            df_plot = df_filtered.copy()
+            df_plot['body_fat_mass_MA7'] = df_plot['body_fat_mass'].rolling(window=7, min_periods=1).mean()
+            
+            figg1 = go.Figure()
+            figg1.add_trace(go.Scatter(x=df_plot['date'], y=df_plot['body_fat_mass'],
+                                      mode='markers', name='Real Value',
+                                      marker=dict(color='lightgray', size=8), opacity=0.6))
+            figg1.add_trace(go.Scatter(x=df_plot['date'], y=df_plot['body_fat_mass_MA7'],
+                                      mode='lines+markers', name='Trend (7d)',
+                                      line=dict(color='#FF6B6B', width=3)))
+            
+            figg1.update_layout(title="Body Fat Evolution (Kg) - 7-day Trend",
+                               hovermode="x unified", height=400)
+            st.plotly_chart(figg1, width='stretch')
 
-                fig_mes_1.update_layout(title="Evolución de métricas absolutas (Línea sólida = Tendencia de 30 días)",
-                                  hovermode="x unified", xaxis_title="")
-                
-                if len(selected_metrics_grasa) == 1:
-                    fig_mes_1 = añadir_bandas_salud(fig_mes_1, selected_metrics_grasa[0], config)
-                
-                st.plotly_chart(fig_mes_1, use_container_width=True,key="plot_for_month_data_1")
-            else:
-                st.info("👆 Selecciona métricas para el Gráfico 1 en el menú lateral.")
-
-            # --- Gráfico 2 ---
-            if selected_metrics_2:
-                df_melted_2 = df_filtered.melt(id_vars=['fecha'], value_vars=selected_metrics_2, 
-                                    var_name='Métrica', value_name='Valor')
-                fig_mes_2 = px.line(df_melted_2, x='fecha', y='Valor', color='Métrica', markers=True,
-                              title="Evolución porcentual en el tiempo",
-                              labels={'fecha': 'Fecha', 'Valor': '%'} )
-                fig_mes_2.update_layout(hovermode="x unified", xaxis_title="")
-                
-                if len(selected_metrics_2) == 1:
-                    fig_mes_2 = añadir_bandas_salud(fig_mes_2, selected_metrics_2[0], config)
-                    
-                st.plotly_chart(fig_mes_2, use_container_width=True,key="plot_for_month_data_2")
-            else:
-                st.info("👆 Selecciona métricas para el Gráfico 2 en el menú lateral.")
-                
-            # --- Gráfico 3 ---
-            if selected_metrics_3:
-                df_melted_3 = df_filtered.melt(id_vars=['fecha'], value_vars=selected_metrics_3, 
-                                    var_name='Métrica', value_name='Valor')
-                
-                fig_mes_3 = px.bar(df_melted_3, x='fecha', y='Valor', color='Métrica', barmode='group',
-                              title="Evolución temporal de Calificaciones Categóricas",
-                              labels={'fecha': 'Fecha', 'Valor': 'Unidad'})
-                
-                for trace in fig_mes_3.data:
-                    metric_name = trace.name
-                    colors_bar = []
-                    
-                    if metric_name == 'edad_corporal':
-                        if "fecha_nacimiento" in config:
-                            fecha_nac = pd.to_datetime(config["fecha_nacimiento"])
-                            edad_real = (df_filtered['fecha'] - fecha_nac).dt.days / 365.25
-                            for y_v, e_v in zip(trace.y, edad_real):
-                                if pd.isna(y_v): colors_bar.append("gray")
-                                elif y_v < e_v: colors_bar.append("green")
-                                else: colors_bar.append("red")
-                            trace.marker.color = colors_bar
-
-                    else:
-                        nombres_posibles = [f"calificacion_{metric_name}", metric_name]
-                        if metric_name.startswith("calificacion_"):
-                            nombres_posibles.append(metric_name.replace("calificacion_grasa_visceral", "calificacion_grasa_viscera"))
-                        else:
-                            nombres_posibles.append(f"calificacion_{metric_name}".replace("calificacion_grasa_visceral", "calificacion_grasa_viscera"))
-                            
-                        metric_config = None
-                        for key in nombres_posibles:
-                            if config.get(key):
-                                metric_config = config.get(key)
-                                break
-                                
-                        if metric_config:
-                            for y_v in trace.y:
-                                colors_bar.append(obtener_color_global(y_v, metric_config, "gray"))
-                            trace.marker.color = colors_bar
-                
-                fig_mes_3.update_layout(hovermode="x unified", xaxis_title="")
-                st.plotly_chart(fig_mes_3, use_container_width=True,key="plot_for_month_data_3")
-            else:
-                st.info("👆 Selecciona métricas para el Gráfico 3 en el menú lateral.")
+            # Chart 2: Percentage and Color
+            point_colors_g = [get_metric_style("body_fat_percentage", v)[0] for v in df_plot['body_fat_percentage']]
+            
+            figg2 = px.bar(df_plot, x='date', y='body_fat_percentage',
+                           title="Body Fat Percentage (%)",
+                           labels={'body_fat_percentage': '% Fat'})
+            figg2.update_traces(marker_color=point_colors_g)
+            figg2 = add_health_bands(figg2, "body_fat_percentage")
+            figg2.update_layout(height=400)
+            st.plotly_chart(figg2, width='stretch')
 
     with tab4:
-        st.header("🥧 Composición Corporal")
+        st.header("🥧 Body Composition")
         
         if not df_filtered.empty:
             latest_record = df_filtered.iloc[-1]
-            fecha_latest = latest_record['fecha'].strftime('%d/%m/%Y')
-            peso_total = latest_record['peso']
-            masa_musc = latest_record['masa_muscular']
-            grasa_corp = latest_record['grasa_corporal']
-            resto = peso_total - masa_musc - grasa_corp
+            latest_date = latest_record['date'].strftime('%d/%m/%Y')
+            total_weight = latest_record['weight']
+            muscle_mass = latest_record['muscle_mass']
+            body_fat_mass = latest_record['body_fat_mass']
+            rest = total_weight - muscle_mass - body_fat_mass
             
             df_pie = pd.DataFrame({
-                'Componente': ['Masa Muscular', 'Grasa Corporal', 'Resto (Hueso, Agua, etc.)'],
-                'Valor': [masa_musc, grasa_corp, resto]
+                'Component': ['Muscle Mass', 'Body Fat', 'Rest (Bone, Water, etc.)'],
+                'Value': [muscle_mass, body_fat_mass, rest]
             })
             
-            val_musc_eval = latest_record.get('porcentaje_musculo', masa_musc)
-            val_grasa_eval = latest_record.get('porcentaje_grasa_corporal', grasa_corp)
+            muscle_eval_val = latest_record.get('muscle_percentage', muscle_mass)
+            fat_eval_val = latest_record.get('body_fat_percentage', body_fat_mass)
                 
-            color_musc = obtener_color_global(val_musc_eval, config.get("calificacion_masa_muscular"), "green")
-            color_grasa = obtener_color_global(val_grasa_eval, config.get("calificacion_grasa_corporal"), "red")
+            muscle_color, _ = get_metric_style("muscle_percentage", muscle_eval_val)
+            fat_color, _ = get_metric_style("body_fat_percentage", fat_eval_val)
 
-            fig_pie = px.pie(df_pie, values='Valor', names='Componente',
-                             title=f"Distribución a fecha de {fecha_latest} (Peso Total: {peso_total} kg)",
-                             color='Componente',
+            fig_pie = px.pie(df_pie, values='Value', names='Component',
+                             title=f"Distribution as of {latest_date} (Total Weight: {total_weight} kg)",
+                             color='Component',
                              color_discrete_map={
-                                 'Masa Muscular': color_musc,
-                                 'Grasa Corporal': color_grasa,
-                                 'Resto (Hueso, Agua, etc.)': 'gray'
+                                 'Muscle Mass': muscle_color,
+                                 'Body Fat': fat_color,
+                                 'Rest (Bone, Water, etc.)': 'gray'
                              })
                              
             fig_pie.update_traces(textposition='inside', textinfo='percent+label')
@@ -680,50 +574,48 @@ if df is not None and not df.empty:
             col_pie, col_legend = st.columns([2, 1])
             
             with col_pie:
-                st.plotly_chart(fig_pie, use_container_width=True)
+                st.plotly_chart(fig_pie, width='stretch')
                 
             with col_legend:
                 st.markdown("<br><br>", unsafe_allow_html=True)
-                st.subheader("Leyenda")
+                st.subheader("Legend")
                 
-                def dibujar_leyenda(titulo, dict_config):
-                    st.markdown(f"**{titulo}**")
-                    if dict_config:
-                        for status, rango in dict_config.items():
-                            c_hex = status_to_hex.get(status, "gray")
-                            st.markdown(f"<span style='color:{c_hex}; font-size:1.2em;'>■</span> {rango} ({status.title()})", unsafe_allow_html=True)
-                    else:
-                        st.markdown("*(No configurado en config.json)*")
+                def draw_legend(metric_key):
+                    m_info = metrics_config["metrics"].get(metric_key, {})
+                    st.markdown(f"**{m_info.get('description', metric_key)}**")
+                    bands = m_info.get("color_bands", [])
+                    if bands:
+                        for b in bands:
+                            st.markdown(f"<span style='color:{b['color']}; font-size:1.2em;'>■</span> {b['min']}-{b['max'] if b['max'] else '∞'} ({b['level']})", unsafe_allow_html=True)
                         
-                dibujar_leyenda("Masa Muscular", config.get("calificacion_masa_muscular", {}))
+                draw_legend("muscle_percentage")
                 st.markdown("<br>", unsafe_allow_html=True)
-                dibujar_leyenda("Grasa Corporal", config.get("calificacion_grasa_corporal", {}))
+                draw_legend("body_fat_percentage")
         else:
-             st.info("No hay datos para mostrar en la composición corporal.")
+             st.info("No data to show in body composition.")
              
     with tab5:
-        st.header("📋 Datos Completos")
-        st.caption("Tabla con todos los registros disponibles, ordenados del más reciente al más antiguo.")
-        st.caption("Nota: Los valores en **rojo** indican el máximo histórico y en **verde** el mínimo histórico de cada columna.")
+        st.header("📋 Complete Data")
+        st.caption("Table with all available records, sorted from most recent to oldest.")
+        st.caption("Note: Values in **red** indicate the historical maximum and in **green** the historical minimum of each column.")
 
         new_custom_order = [
-        'fecha', 'peso', 'masa_muscular', 'grasa_corporal', 'peso_corporal_sin_grasa',
-        'masa_proteica', 'masa_muscular_esqueletica', 'calificacion_grasa_visceral',
-        'masa_agua_corporal', 'porcentaje_musculo', 'porcentaje_grasa_corporal',
-        'porcentaje_proteina', 'filename', 'imc', 'contenido_mineral_oseo',
-        'porcentaje_agua_corporal', 'porcentaje_mineral_oseo', 'indice_metabolico_basal',
-        'estimacion_relacion_cintura_cadera', 'edad_corporal'
+            'date', 'weight', 'muscle_mass', 'body_fat_mass', 'fat_free_body_weight',
+            'protein_mass', 'skeletal_muscle_mass', 'visceral_fat_rating',
+            'body_water_mass', 'muscle_percentage', 'body_fat_percentage',
+            'protein_percentage', 'filename', 'bmi', 'bone_mineral_content',
+            'body_water_percentage', 'bone_mineral_percentage', 'basal_metabolic_rate',
+            'waist_hip_ratio_estimate', 'body_age'
         ]
         
-
         df = df[new_custom_order]
-        df_reversed = df.sort_values(by='fecha', ascending=False)
+        df_reversed = df.sort_values(by='date', ascending=False)
         
-        # Identificar columnas numéricas para el estilo
-        cols_numericas = df_reversed.select_dtypes(include=['float64', 'int64']).columns
+        # Identify numeric columns for styling
+        numeric_cols = df_reversed.select_dtypes(include=['float64', 'int64']).columns
         
-        # Función personalizada para aplicar fondo y color de fuente negro (contraste)
-        def estilo_extremos(col):
+        # Custom function to apply background and black font color (contrast)
+        def extreme_styles(col):
             is_max = col == col.max()
             is_min = col == col.min()
             return [
@@ -733,18 +625,18 @@ if df is not None and not df.empty:
                 for v_max, v_min in zip(is_max, is_min)
             ]
         
-        # Aplicar estilos
-        styled_df = df_reversed.style.format(subset=cols_numericas, formatter="{:.1f}") \
-            .apply(estilo_extremos, subset=cols_numericas)
+        # Apply styles
+        styled_df = df_reversed.style.format(subset=numeric_cols, formatter="{:.1f}") \
+            .apply(extreme_styles, subset=numeric_cols)
             
-        st.dataframe(styled_df, use_container_width=True, hide_index=True)
+        st.dataframe(styled_df, width='stretch', hide_index=True)
 
-        # --- Botón de Exportación ---
+        # --- Export Button ---
         st.markdown("---")
         csv = df_reversed.to_csv(index=False).encode('utf-8')
         st.download_button(
-            label="📥 Descargar Histórico Filtrado (CSV)",
+            label="📥 Download Filtered History (CSV)",
             data=csv,
-            file_name=f"analisis_bascula_{datetime.datetime.now().strftime('%Y%m%d')}.csv",
+            file_name=f"scale_analysis_{datetime.datetime.now().strftime('%Y%m%d')}.csv",
             mime='text/csv',
         )

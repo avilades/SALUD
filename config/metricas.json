@@ -1,0 +1,410 @@
+{
+  "descripcion": "Configuración contextual de rangos biológicos. Cada métrica define sus propios rangos (Min-Max) para asignar color y significado, resolviendo la ambigüedad semántica ('Low' vs 'High').",
+  "metrics": {
+    "peso": {
+      "unidad": "kg",
+      "descripcion": "El peso en sí es una medida incompleta; su análisis debe combinarse con IMC y masa muscular.",
+      "bandas_de_color": [
+        // Este rango es un ejemplo genérico, NO se recomienda usarlo sin datos de altura.
+        {
+          "min": 40,
+          "max": null,
+          "nivel": "Muy Alto",
+          "color": "#FF6B6B",
+          "descripcion": "Peso muy elevado. Consultar médico."
+        },
+        {
+          "min": 50,
+          "max": 95,
+          "nivel": "Óptimo (Ejemplo)",
+          "color": "#4CAF50",
+          "descripcion": "Rango saludable esperado según la altura y el perfil."
+        },
+        {
+          "min": 0,
+          "max": 35.9,
+          "nivel": "Bajo/Crítico",
+          "color": "#FF9F1C",
+          "descripcion": "Peso significativamente bajo. Riesgo de desnutrición."
+        }
+      ]
+    },
+    "masa_muscular": {
+      "unidad": "kg",
+      "descripcion": "Representa la cantidad total de músculo en el cuerpo. Cuanto más alto, mejor (si está dentro de un rango óptimo).",
+      "bandas_de_color": [
+        {
+          "min": null,
+          "max": 40.1,
+          "nivel": "Muy Alto/Óptimo",
+          "color": "#4CAF50",
+          "descripcion": "Nivel muy saludable y avanzado."
+        },
+        {
+          "min": 30.0,
+          "max": 40.1,
+          "nivel": "Alto/Saludable",
+          "color": "#8BC34A",
+          "descripcion": "Buen desarrollo muscular en el rango esperado."
+        },
+        {
+          "min": 22.0,
+          "max": 30.0,
+          "nivel": "Standard",
+          "color": "#FFEB3B",
+          "descripcion": "Nivel aceptable/promedio. Se recomienda aumentar la ingesta proteica."
+        },
+        {
+          "min": 0,
+          "max": 22.0,
+          "nivel": "Crítico/Bajo",
+          "color": "#F4517E",
+          "descripcion": "Masa muscular peligrosamente baja. Riesgo de sarcopenia."
+        }
+      ]
+    },
+    "grasa_corporal": {
+      "unidad": "kg",
+      "descripcion": "Porcentaje ideal varía por género (este ejemplo usa guías generales). Alto es malo; demasiado bajo también puede ser peligroso.",
+      "bandas_de_color": [
+        {
+          "min": 10.0,
+          "max": 18.0,
+          "nivel": "Ideal/Óptimo",
+          "color": "#4CAF50",
+          "descripcion": "Rango saludable y metabólicamente ideal."
+        },
+        // Nota: Este rango varía mucho por género (ej: Hombres vs Mujeres)
+        {
+          "min": 18.1,
+          "max": 25.0,
+          "nivel": "Alto/Advertencia",
+          "color": "#FF9F1C",
+          "descripcion": "Nivel elevado. Considerar reducción de ingesta calórica."
+        },
+        {
+          "min": 25.1,
+          "max": 35.0,
+          "nivel": "Muy Alto/Riesgo",
+          "color": "#FF6B6B",
+          "descripcion": "Exceso significativo de grasa. Riesgo cardiovascular alto."
+        }
+      ]
+    },
+    "peso_corporal_sin_grasa": {
+      "unidad": "kg",
+      "descripcion": "Masa magra total (músculo, hueso, órganos). Este valor debe ser lo más alto posible.",
+      "bandas_de_color": [
+        {
+          "min": null,
+          "max": 35.0,
+          "nivel": "Excelente",
+          "color": "#4CAF50",
+          "descripcion": "Masa magra robusta y saludable."
+        },
+        {
+          "min": 28.0,
+          "max": 35.0,
+          "nivel": "Buena",
+          "color": "#8BC34A",
+          "descripcion": "Nivel bueno, se recomienda mantener la ingesta proteica."
+        },
+        {
+          "min": 0,
+          "max": 28.0,
+          "nivel": "Bajo/Preocupación",
+          "color": "#FF9F1C",
+          "descripcion": "Masa magra baja en relación al peso total."
+        }
+      ]
+    },
+    "masa_proteica": {
+      "unidad": "kg",
+      "descripcion": "Aunque es difícil de medir, se asume que este valor debe ser alto y estable.",
+      "bandas_de_color": [
+        {
+          "min": null,
+          "max": 30.0,
+          "nivel": "Óptimo/Alto",
+          "color": "#4CAF50",
+          "descripcion": "Niveles saludables de proteína magra."
+        },
+        {
+          "min": 20.0,
+          "max": 30.0,
+          "nivel": "Adecuado",
+          "color": "#8BC34A",
+          "descripcion": "Nivel aceptable. Monitorear la dieta para mejorar este valor."
+        }
+      ]
+    },
+    "masa_muscular_esqueletica": {
+      "unidad": "kg",
+      "descripcion": "Masa muscular que se adhiere al esqueleto (huesos, músculos grandes). Debe ser alta.",
+      "bandas_de_color": [
+        {
+          "min": null,
+          "max": 25.0,
+          "nivel": "Excelente/Óptimo",
+          "color": "#4CAF50",
+          "descripcion": "Masa esquelética óptima y fuerte."
+        },
+        {
+          "min": 18.0,
+          "max": 25.0,
+          "nivel": "Aceptable",
+          "color": "#FFEB3B",
+          "descripcion": "Nivel estándar de masa ósea y muscular."
+        }
+      ]
+    },
+    "calificacion_grasa_visceral": {
+      "unidad": "puntuación (CV)",
+      "descripcion": "Mide el riesgo de enfermedad metabólica. Valores bajos son muy deseables.",
+      "bandas_de_color": [
+        {
+          "min": 1,
+          "max": null,
+          "nivel": "Excelente/Bajo Riesgo",
+          "color": "#4CAF50",
+          "descripcion": "Nivel bajo y saludable de grasa visceral."
+        },
+        {
+          "min": 2,
+          "max": 6,
+          "nivel": "Aceptable",
+          "color": "#FFEB3B",
+          "descripcion": "Rango estándar. Mantener hábitos saludables."
+        },
+        {
+          "min": 7,
+          "max": null,
+          "nivel": "Alto/Peligro",
+          "color": "#FF9F1C",
+          "descripcion": "Nivel elevado de riesgo metabólico (se recomienda reducir la ingesta calórica)."
+        }
+      ]
+    },
+    "masa_agua_corporal": {
+      "unidad": "kg",
+      "descripcion": "La deshidratación es un indicador crítico. El valor debe estar alto.",
+      "bandas_de_color": [
+        {
+          "min": null,
+          "max": 45.0,
+          "nivel": "Muy Alto/Óptimo",
+          "color": "#2196F3",
+          "descripcion": "Excelente hidratación corporal."
+        },
+        {
+          "min": 37.0,
+          "max": 45.0,
+          "nivel": "Aceptable",
+          "color": "#8BC34A",
+          "descripcion": "Nivel estándar de agua. Mantener ingesta constante."
+        },
+        {
+          "min": null,
+          "max": 37.0,
+          "nivel": "Bajo/Crítico",
+          "color": "#F4517E",
+          "descripcion": "Deshidratación o baja retención hídrica (riesgo de salud)."
+        }
+      ]
+    },
+    "porcentaje_musculo": {
+      "unidad": "%",
+      "descripcion": "El porcentaje debe ser alto para reflejar buena condición física.",
+      "bandas_de_color": [
+        {
+          "min": null,
+          "max": 50.0,
+          "nivel": "Óptimo/Alto",
+          "color": "#4CAF50",
+          "descripcion": "Excelente desarrollo muscular."
+        },
+        {
+          "min": 35.0,
+          "max": 50.0,
+          "nivel": "Aceptable",
+          "color": "#FFEB3B",
+          "descripcion": "Nivel estándar de músculo en relación con el total corporal."
+        },
+        {
+          "min": null,
+          "max": 35.0,
+          "nivel": "Bajo/Riesgo",
+          "color": "#FF9F1C",
+          "descripcion": "Porcentaje bajo. Necesidad urgente de aumentar la masa muscular."
+        }
+      ]
+    },
+    "porcentaje_grasa_corporal": {
+      // Nota: Este campo es redundante con 'grasa_corporal', pero se mantiene por si el usuario lo requiere en el JSON.
+      "unidad": "%",
+      "descripcion": "Mismo análisis que la métrica de 'Grasa Corporal' (usar las mismas reglas).",
+      "bandas_de_color": [
+        {
+          "min": 10.0,
+          "max": 18.0,
+          "nivel": "Ideal/Óptimo",
+          "color": "#4CAF50",
+          "descripcion": "Rango saludable."
+        },
+        {
+          "min": 25.1,
+          "max": null,
+          "nivel": "Muy Alto/Riesgo",
+          "color": "#FF6B6B",
+          "descripcion": "Exceso significativo de grasa."
+        }
+      ]
+    },
+    "porcentaje_proteina": {
+      "unidad": "%",
+      "descripcion": "El porcentaje ideal es difícil de definir y varía mucho; se espera un buen nivel relativo.",
+      "bandas_de_color": [
+        {
+          "min": null,
+          "max": 30.0,
+          "nivel": "Óptimo/Alto",
+          "color": "#4CAF50",
+          "descripcion": "Buena distribución de proteína en el cuerpo."
+        },
+        {
+          "min": 15.0,
+          "max": 30.0,
+          "nivel": "Aceptable",
+          "color": "#FFEB3B",
+          "descripcion": "Nivel estándar. Mantener la ingesta proteica adecuada."
+        }
+      ]
+    },
+    "porcentaje_mineral_oseo": {
+      "unidad": "%",
+      "descripcion": "Indicador de salud ósea. Debe ser alto.",
+      "bandas_de_color": [
+        {
+          "min": null,
+          "max": 25.0,
+          "nivel": "Excelente/Alto",
+          "color": "#4CAF50",
+          "descripcion": "Alta densidad mineral ósea."
+        },
+        {
+          "min": 15.0,
+          "max": 25.0,
+          "nivel": "Aceptable",
+          "color": "#FFEB3B",
+          "descripcion": "Nivel estándar de salud ósea."
+        }
+      ]
+    },
+    "porcentaje_agua_corporal": {
+      // Redundante con 'masa_agua_corporal', pero útil para mostrar el % directamente.
+      "unidad": "%",
+      "descripcion": "Idealmente entre 50% y 65%. Indica hidratación y función celular.",
+      "bandas_de_color": [
+        {
+          "min": null,
+          "max": 65.0,
+          "nivel": "Excelente/Óptimo",
+          "color": "#2196F3",
+          "descripcion": "Nivel de hidratación óptimo."
+        },
+        {
+          "min": 50.0,
+          "max": 65.0,
+          "nivel": "Aceptable",
+          "color": "#8BC34A",
+          "descripcion": "Rango saludable y normal."
+        }
+      ]
+    },
+    "imc": {
+      "unidad": "kg/m²",
+      "descripcion": "Índice general de masa corporal. Clasifica el riesgo nutricional.",
+      "bandas_de_color": [
+        {
+          "min": 18.5,
+          "max": 24.9,
+          "nivel": "Normal (Saludable)",
+          "color": "#4CAF50",
+          "descripcion": "Rango de peso óptimo y saludable."
+        },
+        // Baja: El valor por debajo del recomendado es un warning naranja/amarillo antes del rojo.
+        {
+          "min": 16.0,
+          "max": 18.4,
+          "nivel": "Bajo Peso (Advertencia)",
+          "color": "#FF9F1C",
+          "descripcion": "Riesgo de desnutrición o bajo peso."
+        },
+        // Alto: El valor por encima del recomendado es un warning naranja/amarillo antes del rojo.
+        {
+          "min": 25.0,
+          "max": 29.9,
+          "nivel": "Sobrepeso (Advertencia)",
+          "color": "#FF9F1C",
+          "descripcion": "Riesgo de peso excesivo; modificar dieta y ejercicio."
+        },
+        // Obeso: Rango rojo crítico.
+        {
+          "min": 30.0,
+          "max": null,
+          "nivel": "Obesidad/Alto Riesgo",
+          "color": "#FF6B6B",
+          "descripcion": "Nivel de riesgo muy alto para la salud cardiovascular."
+        }
+      ]
+    },
+    "contenido_mineral_oseo": {
+      "unidad": "g/100ml o g/kg",
+      "descripcion": "Mide la densidad y cantidad de minerales en los huesos. Debe ser lo más alto posible.",
+      "bandas_de_color": [
+        {
+          "min": null,
+          "max": 2.5,
+          "nivel": "Óptimo",
+          "color": "#4CAF50",
+          "descripcion": "Alta densidad mineral ósea."
+        },
+        {
+          "min": 1.8,
+          "max": 2.5,
+          "nivel": "Aceptable",
+          "color": "#FFEB3B",
+          "descripcion": "Nivel estándar de contenido mineral."
+        }
+      ]
+    },
+    "indice_metabolico_basal": {
+      "unidad": "kcal/día",
+      "descripcion": "Mínimo de calorías que el cuerpo necesita en reposo. Un valor bajo puede indicar bajo músculo o problemas metabólicos.",
+      "bandas_de_color": [
+        {
+          "min": null,
+          "max": 1500,
+          "nivel": "Excelente/Alto",
+          "color": "#4CAF50",
+          "descripcion": "Metabolismo alto y eficiente (según perfil)."
+        },
+        // Nota: El rango ideal debe ser calculado por fórmula y no fijo.
+        {
+          "min": null,
+          "max": 1500,
+          "nivel": "Aceptable",
+          "color": "#8BC34A",
+          "descripcion": "Nivel metabolico normal."
+        },
+        {
+          "min": null,
+          "max": 1200,
+          "nivel": "Bajo/Preocupación",
+          "color": "#FF9F1C",
+          "descripcion": "Metabolismo bajo. Puede indicar masa muscular muy baja o sobreentrenamiento."
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,315 @@
+{
+  "description": "Contextual configuration of biological ranges. Each metric defines its own ranges (Min-Max) to assign color and meaning, resolving semantic ambiguity ('Low' vs 'High').",
+  "metrics": {
+    "weight": {
+      "unit": "kg",
+      "description": "Weight alone is an incomplete measure; its analysis must be combined with BMI and muscle mass.",
+      "color_bands": [
+        {
+          "min": 40,
+          "max": null,
+          "level": "Very High",
+          "color": "#FF6B6B",
+          "description": "Very high weight. Consult a doctor."
+        },
+        {
+          "min": 50,
+          "max": 95,
+          "level": "Optimal (Example)",
+          "color": "#4CAF50",
+          "description": "Healthy range expected based on height and profile."
+        },
+        {
+          "min": 0,
+          "max": 35.9,
+          "level": "Low/Critical",
+          "color": "#FF9F1C",
+          "description": "Significantly low weight. Risk of malnutrition."
+        }
+      ]
+    },
+    "visceral_fat_rating": {
+      "unit": "score (VR)",
+      "description": "Measures the risk of metabolic disease. Low values are highly desirable.",
+      "color_bands": [
+        {
+          "min": 1,
+          "max": 4.5,
+          "level": "Excellent/Low Risk",
+          "color": "#4CAF50",
+          "description": "Low and healthy visceral fat level."
+        },
+        {
+          "min": 4.6,
+          "max": 9.5,
+          "level": "Acceptable",
+          "color": "#FFEB3B",
+          "description": "Standard range. Maintain healthy habits."
+        },
+        {
+          "min": 9.6,
+          "max": 14.5,
+          "level": "High",
+          "color": "#FF9F1C",
+          "description": "High level of metabolic risk."
+        },
+        {
+          "min": 14.6,
+          "max": null,
+          "level": "Very High",
+          "color": "#FF6B6B",
+          "description": "Very high level of metabolic risk."
+        }
+      ]
+    },
+    "muscle_percentage": {
+      "unit": "%",
+      "description": "The percentage should be high to reflect good physical condition.",
+      "color_bands": [
+        {
+          "min": null,
+          "max": 50.0,
+          "level": "Optimal/High",
+          "color": "#4CAF50",
+          "description": "Excellent muscle development."
+        },
+        {
+          "min": 35.0,
+          "max": 50.0,
+          "level": "Acceptable",
+          "color": "#FFEB3B",
+          "description": "Standard muscle level relative to body total."
+        },
+        {
+          "min": null,
+          "max": 35.0,
+          "level": "Low/Risk",
+          "color": "#FF9F1C",
+          "description": "Low percentage. Urgent need to increase muscle mass."
+        }
+      ]
+    },
+    "body_fat_percentage": {
+      "unit": "%",
+      "description": "Same analysis as 'Body Fat Mass' (use the same rules).",
+      "color_bands": [
+        {
+          "min": 10.0,
+          "max": 18.0,
+          "level": "Ideal/Optimal",
+          "color": "#4CAF50",
+          "description": "Healthy range."
+        },
+        {
+          "min": 25.1,
+          "max": null,
+          "level": "Very High/Risk",
+          "color": "#FF6B6B",
+          "description": "Significant excess fat."
+        }
+      ]
+    },
+    "protein_percentage": {
+      "unit": "%",
+      "description": "Ideal percentage is hard to define and varies greatly; a good relative level is expected.",
+      "color_bands": [
+        {
+          "min": null,
+          "max": 30.0,
+          "level": "Optimal/High",
+          "color": "#4CAF50",
+          "description": "Good protein distribution in the body."
+        },
+        {
+          "min": 15.0,
+          "max": 30.0,
+          "level": "Acceptable",
+          "color": "#FFEB3B",
+          "description": "Standard level. Maintain adequate protein intake."
+        }
+      ]
+    },
+    "bone_mineral_percentage": {
+      "unit": "%",
+      "description": "Bone health indicator. Should be high.",
+      "color_bands": [
+        {
+          "min": null,
+          "max": 25.0,
+          "level": "Excellent/High",
+          "color": "#4CAF50",
+          "description": "High bone mineral density."
+        },
+        {
+          "min": 15.0,
+          "max": 25.0,
+          "level": "Acceptable",
+          "color": "#FFEB3B",
+          "description": "Standard bone health level."
+        }
+      ]
+    },
+    "body_water_percentage": {
+      "unit": "%",
+      "description": "Ideally between 50% and 65%. Indicates hydration and cellular function.",
+      "color_bands": [
+        {
+          "min": null,
+          "max": 65.0,
+          "level": "Excellent/Optimal",
+          "color": "#2196F3",
+          "description": "Optimal hydration level."
+        },
+        {
+          "min": 50.0,
+          "max": 65.0,
+          "level": "Acceptable",
+          "color": "#8BC34A",
+          "description": "Healthy and normal range."
+        }
+      ]
+    },
+    "bmi": {
+      "unit": "kg/m²",
+      "description": "General Body Mass Index. Classifies nutritional risk.",
+      "color_bands": [
+        {
+          "min": 18.5,
+          "max": 24.9,
+          "level": "Normal (Healthy)",
+          "color": "#4CAF50",
+          "description": "Optimal and healthy weight range."
+        },
+        {
+          "min": 16.0,
+          "max": 18.4,
+          "level": "Underweight (Warning)",
+          "color": "#FF9F1C",
+          "description": "Risk of malnutrition or underweight."
+        },
+        {
+          "min": 25.0,
+          "max": 29.9,
+          "level": "Overweight (Warning)",
+          "color": "#FF9F1C",
+          "description": "Risk of excessive weight; modify diet and exercise."
+        },
+        {
+          "min": 30.0,
+          "max": null,
+          "level": "Obesity/High Risk",
+          "color": "#FF6B6B",
+          "description": "Very high risk level for cardiovascular health."
+        }
+      ]
+    },
+    "bone_mineral_content": {
+      "unit": "g/100ml or g/kg",
+      "description": "Measures density and amount of minerals in bones. Should be as high as possible.",
+      "color_bands": [
+        {
+          "min": null,
+          "max": 2.5,
+          "level": "Optimal",
+          "color": "#4CAF50",
+          "description": "High bone mineral density."
+        },
+        {
+          "min": 1.8,
+          "max": 2.5,
+          "level": "Acceptable",
+          "color": "#FFEB3B",
+          "description": "Standard mineral content level."
+        }
+      ]
+    },
+    "basal_metabolic_rate": {
+      "unit": "kcal/day",
+      "description": "Minimum calories the body needs at rest. A low value may indicate low muscle or metabolic issues.",
+      "color_bands": [
+        {
+          "min": null,
+          "max": 1500,
+          "level": "Excellent/High",
+          "color": "#4CAF50",
+          "description": "High and efficient metabolism (according to profile)."
+        },
+        {
+          "min": null,
+          "max": 1500,
+          "level": "Acceptable",
+          "color": "#8BC34A",
+          "description": "Normal metabolic level."
+        },
+        {
+          "min": null,
+          "max": 1200,
+          "level": "Low/Concern",
+          "color": "#FF9F1C",
+          "description": "Low metabolism. May indicate very low muscle mass or overtraining."
+        }
+      ]
+    },
+    "muscle_mass": {
+      "unit": "kg",
+      "description": "Represents the total amount of muscle in the body. Higher is generally better.",
+      "color_bands": [
+        {
+          "min": 60.1,
+          "max": null,
+          "level": "Very High",
+          "color": "#4CAF50",
+          "description": "Very high muscle mass level."
+        },
+        {
+          "min": 52.0,
+          "max": 60.0,
+          "level": "Optimal",
+          "color": "#4CAF50",
+          "description": "Healthy and target range."
+        },
+        {
+          "min": 45.0,
+          "max": 51.9,
+          "level": "Low",
+          "color": "#FF9F1C",
+          "description": "Muscle mass below average."
+        },
+        {
+          "min": 0,
+          "max": 44.9,
+          "level": "Critical",
+          "color": "#FF6B6B",
+          "description": "Critically low level."
+        }
+      ]
+    },
+    "body_fat_mass": {
+      "unit": "kg",
+      "description": "Total weight of body fat. Ideally should be kept in a healthy range.",
+      "color_bands": [
+        {
+          "min": 8.0,
+          "max": 15.0,
+          "level": "Ideal",
+          "color": "#4CAF50",
+          "description": "Optimal fat level."
+        },
+        {
+          "min": 15.1,
+          "max": 20.0,
+          "level": "Acceptable",
+          "color": "#FFEB3B",
+          "description": "Standard range."
+        },
+        {
+          "min": 20.1,
+          "max": null,
+          "level": "High",
+          "color": "#FF6B6B",
+          "description": "Excess fat."
+        }
+      ]
+    }
+  }
+}

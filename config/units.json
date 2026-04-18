@@ -1,0 +1,32 @@
+{
+  "weight": {
+    "unit": "kg"
+  },
+  "muscle_mass": {
+    "unit": "kg"
+  },
+  "body_fat_mass": {
+    "unit": "kg"
+  },
+  "fat_free_body_weight": {
+    "unit": "kg"
+  },
+  "protein_mass": {
+    "unit": "kg"
+  },
+  "skeletal_muscle_mass": {
+    "unit": "kg"
+  },
+  "visceral_fat_rating": {
+    "unit": "score (VR)"
+  },
+  "body_water_mass": {
+    "unit": "kg"
+  },
+  "muscle_percentage": {
+    "unit": "%"
+  },
+  "body_fat_percentage": {
+    "unit": "%"
+  }
+}
