@@ -2,6 +2,11 @@
     "google_sheets_url": "https://docs.google.com/spreadsheets/d/1nY-LA3tqpkkdUqVTSXvHBmhV_Xj6eAfYqiiVIz6_QEs/edit?gid=1034831241#gid=1034831241",
     "csv_file_path": "results_2.csv",
     "fecha_nacimiento": "1979-01-01",
+    "height": 1.71,
+    "objetivo_peso": 76,
+    "objetivo_grasa_visceral": 4.5,
+    "objetivo_grasa_corporal": 15,
+    "objetivo_masa_muscular": 52,
     "calificacion_grasa_viscera": {
         "en rango": "1-4.5",
         "por encima": "4.5-9.5",

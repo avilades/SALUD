@@ -195,7 +195,7 @@ with st.sidebar:
     
     st.markdown("---")
     st.subheader("🎯 Objetivos")
-    default_target = 74.0
+    default_target = config['objetivo_peso']
     peso_objetivo = st.number_input("Peso Objetivo (kg):", value=float(default_target), step=0.1)
 
 # --- TÍTULO PRINCIPAL ---
@@ -433,7 +433,7 @@ if df is not None and not df.empty:
                 st.info(f"**Máxima Masa Muscular**\n\n### {record_musculo_max['masa_muscular']:.1f} kg\n*(Registrado el {record_musculo_max['fecha'].strftime('%d/%m/%Y')})*")
 
     with tab2:
-        st.header("📈 Evolución Temporal Semanal")
+        st.header("📈 Evolución ultimos 7 días")
         if df_filtered.empty:
             st.warning("No hay datos en el rango seleccionado.")
         else:
@@ -458,14 +458,16 @@ if df is not None and not df.empty:
                     # Puntos reales y linea tenue
                     fig_sem_1.add_trace(go.Scatter(x=df_ma_filtered['fecha'], y=df_ma_filtered[m],
                                             mode='lines+markers', name=m,
-                                            line=dict(color=color, width=2, dash='dot'), opacity=0.4))
+                                            line=dict(color=color, width=2, dash='dot'), opacity=0.4 ))
                     # Media Móvil (Tendencia)
                     fig_sem_1.add_trace(go.Scatter(x=df_ma_filtered['fecha'], y=df_ma_filtered[f"{m}_MA7"],
                                             mode='lines', name=f"{m} (Tendencia 7d)",
                                             line=dict(color=color, width=3)))
 
-                fig_sem_1.update_layout(title="Evolución de métricas absolutas (Línea sólida = Tendencia de 7 días)",
-                                  hovermode="x unified", xaxis_title="")
+                fig_sem_1.update_layout(title="Evolución masa muscular",
+                                  hovermode="x unified", xaxis_title="",
+                                  legend_title="Masa Muscular",
+                                  legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center"))
                 
                 # Añadir bandas si solo hay una métrica seleccionada para evitar saturación
                 if len(selected_metrics_1) == 1:
@@ -477,12 +479,12 @@ if df is not None and not df.empty:
 
             # --- Gráfico 2 ---
             if selected_metrics_2:
-                df_melted_2 = df_filtered.melt(id_vars=['fecha'], value_vars=selected_metrics_2, 
-                                    var_name='Métrica', value_name='Valor')
-                fig_sem_2 = px.line(df_melted_2, x='fecha', y='Valor', color='Métrica', markers=True,
-                               title="Evolución porcentual en el tiempo",
-                               labels={'fecha': 'Fecha', 'Valor': '%'} )
-                fig_sem_2.update_layout(hovermode="x unified", xaxis_title="")
+                df_melted_2 = df_filtered.melt(id_vars=['fecha'], value_vars=selected_metrics_grasa, # selected_metrics_2, 
+                                    var_name='Kilos', value_name='Valor')
+                fig_sem_2 = px.line(df_melted_2, x='fecha', y='Valor', color='Kilos', markers=True,
+                               title="Evolución grasa corporal",
+                               labels={'fecha': 'Fecha', 'Valor': 'Kg'} )
+                fig_sem_2.update_layout(hovermode="x unified", xaxis_title="",legend_title="Kilos",legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center"))
                 
                 if len(selected_metrics_2) == 1:
                     fig_sem_2 = añadir_bandas_salud(fig_sem_2, selected_metrics_2[0], config)
@@ -532,7 +534,7 @@ if df is not None and not df.empty:
                                 colors_bar.append(obtener_color_global(y_v, metric_config, "gray"))
                             trace.marker.color = colors_bar
                 
-                fig_sem_3.update_layout(hovermode="x unified", xaxis_title="")
+                fig_sem_3.update_layout(hovermode="x unified", xaxis_title="",legend_title="Calificación",legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center"))
                 st.plotly_chart(fig_sem_3, use_container_width=True,key="plot_for_week_data_3")
             else:
                 st.info("👆 Selecciona métricas para el Gráfico 3 en el menú lateral.")
