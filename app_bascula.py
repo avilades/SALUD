@@ -114,7 +114,7 @@ def create_gauge(value, title, metric_key):
             }
         }
     ))
-    fig.update_layout(height=230, margin=dict(l=30, r=30, t=50, b=20), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
+    fig.update_layout(height=300, margin=dict(l=30, r=30, t=50, b=20), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
     return fig
 
 def add_health_bands(fig, metric):
@@ -457,7 +457,7 @@ if df is not None and not df.empty:
 
             fig_weight.update_layout(
                 hovermode="x unified", 
-                height=400, 
+                height=500, #hegiht marca la altitud del grafico
                 margin=dict(l=10, r=10, t=30, b=10),
                 yaxis=dict(range=[y_min, y_max], fixedrange=False)
             )
@@ -533,7 +533,7 @@ if df is not None and not df.empty:
                                      line=dict(color='#4CAF50', width=3)))
             
             fig1.update_layout(title=f"Muscle Mass Evolution (Kg) - {last_days_val}-day Trend",
-                               hovermode="x unified", height=400)
+                               hovermode="x unified", height=500)
             st.plotly_chart(fig1, width='stretch')
 
             # Chart 2: Percentage and Color
@@ -550,7 +550,7 @@ if df is not None and not df.empty:
             y_max_m = df_plot['muscle_percentage'].max() + 5
             y_min_m = max(0, df_plot['muscle_percentage'].min() - 5)
             
-            fig2.update_layout(height=250, yaxis=dict(range=[y_min_m, y_max_m], fixedrange=False))
+            fig2.update_layout(height=500, yaxis=dict(range=[y_min_m, y_max_m], fixedrange=False))
             st.plotly_chart(fig2, width='stretch')
 
     with tab3:
@@ -571,7 +571,7 @@ if df is not None and not df.empty:
                                       line=dict(color='#FF6B6B', width=3)))
             
             figg1.update_layout(title=f"Body Fat Evolution (Kg) - {last_days_val}-day Trend",
-                               hovermode="x unified", height=400)
+                               hovermode="x unified", height=500)
             st.plotly_chart(figg1, width='stretch')
 
             # Chart 2: Percentage and Color
@@ -587,7 +587,7 @@ if df is not None and not df.empty:
             y_max_f = df_plot['body_fat_percentage'].max() + 5
             y_min_f = max(0, df_plot['body_fat_percentage'].min() - 5)
 
-            figg2.update_layout(height=400, yaxis=dict(range=[y_min_f, y_max_f], fixedrange=False))
+            figg2.update_layout(height=500, yaxis=dict(range=[y_min_f, y_max_f], fixedrange=False))
             st.plotly_chart(figg2, width='stretch')
 
     with tab4:
