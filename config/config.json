@@ -1,12 +1,17 @@
 {
     "google_sheets_url": "https://docs.google.com/spreadsheets/d/1nY-LA3tqpkkdUqVTSXvHBmhV_Xj6eAfYqiiVIz6_QEs/edit?gid=1034831241#gid=1034831241",
     "csv_file_path": "results_2.csv",
+    "last_days": "15",
     "birth_date": "1979-01-01",
     "height": 1.71,
     "weight_target": 76,
     "visceral_fat_target": 4.5,
     "body_fat_percentage_target": 15,
     "muscle_mass_target": 52,
+    "waist_target": 90,
+    "hip_target": 100,
+    "chest_target": 100,
+    "waist_hip_ratio_target": 0.9,
     "visceral_fat_rating_config": {
         "in_range": "1-4.5",
         "above": "4.5-9.5",

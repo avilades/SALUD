@@ -30,7 +30,16 @@ COL_MAPPING = {
     'indice_metabolico_basal': 'basal_metabolic_rate',
     'estimacion_relacion_cintura_cadera': 'waist_hip_ratio_estimate',
     'edad_corporal': 'body_age',
-    'peso_corporal_sin_grasa': 'fat_free_body_weight'
+    'peso_corporal_sin_grasa': 'fat_free_body_weight',
+    'cintura': 'waist',
+    'cadera': 'hip',
+    'pecho': 'chest',
+    'cintura_cm': 'waist_cm',
+    'cadera_cm': 'hip_cm',
+    'pecho_cm': 'chest_cm',
+    'muslo_cm': 'thigh_cm',
+    'pantorrilla_cm': 'calf_cm',
+    'brazo_cm': 'arm_cm',
 }
 
 # Reading configuration files
@@ -117,9 +126,10 @@ def add_health_bands(fig, metric):
         m_max = band.get("max")
         color = band.get("color")
         if color:
-            # If min or max is None, we use extreme values for visualization
-            y0 = m_min if m_min is not None else -1000
-            y1 = m_max if m_max is not None else 1000
+            # Avoid using extreme values like 0 or 1000 for infinite ranges
+            # if we want the axis to auto-zoom on the data.
+            y0 = m_min if m_min is not None else -100
+            y1 = m_max if m_max is not None else 500
             fig.add_hrect(y0=y0, y1=y1, fillcolor=color, opacity=0.1, line_width=0, layer="below")
     return fig
 
@@ -136,8 +146,10 @@ def load_data():
             # Read local CSV
             df = pd.read_csv(csv_file_path, encoding="utf-8")
         
-        # Rename columns to English
-        df = df.rename(columns=COL_MAPPING)
+        # Rename columns to English (case-insensitive for keys)
+        df.columns = [c.strip() for c in df.columns] # Remove accidental spaces
+        col_map_lower = {k.lower(): v for k, v in COL_MAPPING.items()}
+        df.columns = [col_map_lower.get(c.lower(), c) for c in df.columns]
 
         # Convert date. In the CSV it's as dd/mm/yyyy
         df['date'] = pd.to_datetime(df['date'], format='%d/%m/%Y', errors='coerce')
@@ -168,20 +180,26 @@ with st.sidebar:
         st.subheader("📅 Date Filter")
         min_date = df['date'].min().date()
         max_date = df['date'].max().date()
+        total_available_days = (max_date - min_date).days
         # By default show the last month
         default_start_date = max(min_date, max_date - datetime.timedelta(days=30))
 
-        start_date_7_day = max_date - datetime.timedelta(days=7)
-        start_date_15_day = max_date - datetime.timedelta(days=15)
-        start_date_30_day = max_date - datetime.timedelta(days=30)
+        # Sidebar control for last_days, initialized from config but not saved back
+        last_days_val = st.number_input(
+    "Days to look back:", 
+    value=int(config.get('last_days', 15)), 
+    min_value=1, 
+    max_value=total_available_days, # con esto no puede poner mas dias de los que hay
+    step=1
+)
+        start_date_day = max_date - datetime.timedelta(days=last_days_val)
         
-        date_range = st.date_input("Select range:", (start_date_15_day, max_date), min_value=min_date, max_value=max_date)
-        #date_range_30 = st.date_input("Selecciona el rango:", (start_date_30_day, max_date), min_value=min_date, max_value=max_date)
+        date_range = st.date_input("Select range:", (start_date_day, max_date), min_value=min_date, max_value=max_date)
         
         if len(date_range) == 2:
-            start_date_7, end_date_7 = date_range
+            start_date, end_date_7 = date_range
         else:
-            start_date_7 = end_date_7 = date_range[0]
+            start_date = end_date_7 = date_range[0]
             
         #if len(date_range_30) == 2:
         #    start_date_30, end_date_30 = date_range_30
@@ -189,20 +207,20 @@ with st.sidebar:
         #    start_date_30 = end_date_30 = date_range_30[0]
             
         st.markdown("---")
-        st.subheader("📊 Chart Filters")
-        numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
-        
-        default_metrics_1 = [m for m in ['muscle_mass'] if m in numeric_columns]
-        selected_metrics_1 = st.multiselect("Chart 1 (Absolute):", options=numeric_columns, default=default_metrics_1)
-
-        default_metrics_fat = [m for m in ['body_fat_mass'] if m in numeric_columns]
-        selected_metrics_fat = st.multiselect("Chart 2 (Absolute):", options=numeric_columns, default=default_metrics_fat)
-        
-        default_metrics_2 = [m for m in ['muscle_percentage', 'body_fat_percentage'] if m in numeric_columns]
-        selected_metrics_2 = st.multiselect("Chart 2 (Percentages):", options=numeric_columns, default=default_metrics_2)
-
-        default_metrics_3 = [m for m in ['visceral_fat_rating', 'body_age'] if m in numeric_columns]
-        selected_metrics_3 = st.multiselect("Chart 3 (Evolution):", options=numeric_columns, default=default_metrics_3)
+        ##st.subheader("📊 Chart Filters")
+        ##numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
+        ##
+        ##default_metrics_1 = [m for m in ['muscle_mass'] if m in numeric_columns]
+        ##selected_metrics_1 = st.multiselect("Chart 1 (Absolute):", options=numeric_columns, default=default_metrics_1)
+##
+        ##default_metrics_fat = [m for m in ['body_fat_mass'] if m in numeric_columns]
+        ##selected_metrics_fat = st.multiselect("Chart 2 (Absolute):", options=numeric_columns, default=default_metrics_fat)
+        ##
+        ##default_metrics_2 = [m for m in ['muscle_percentage', 'body_fat_percentage'] if m in numeric_columns]
+        ##selected_metrics_2 = st.multiselect("Chart 2 (Percentages):", options=numeric_columns, default=default_metrics_2)
+##
+        ##default_metrics_3 = [m for m in ['visceral_fat_rating', 'body_age'] if m in numeric_columns]
+        ##selected_metrics_3 = st.multiselect("Chart 3 (Evolution):", options=numeric_columns, default=default_metrics_3)
         
         st.markdown("---")
         st.subheader("💡 Period Comparison")
@@ -210,7 +228,7 @@ with st.sidebar:
         if comparison_mode:
             min_c = min_date
             max_c = max_date
-            comp_range = st.date_input("Period 2 (Comparative):", (start_date_7 - datetime.timedelta(days=7), start_date_7 - datetime.timedelta(days=1)), min_value=min_c, max_value=max_c)
+            comp_range = st.date_input("Period 2 (Comparative):", (start_date - datetime.timedelta(days=7), start_date - datetime.timedelta(days=1)), min_value=min_c, max_value=max_c)
             if len(comp_range) == 2:
                 start_comp, end_comp = comp_range
             else:
@@ -231,7 +249,7 @@ st.markdown("Visualization and intelligence of metrics collected from your scale
 if df is not None and not df.empty:
     
     # Date filter applied to DF
-    mask = (df['date'].dt.date >= start_date_7) & (df['date'].dt.date <= end_date_7)
+    mask = (df['date'].dt.date >= start_date) & (df['date'].dt.date <= end_date_7)
     df_filtered = df.loc[mask]
 
     if comparison_mode:
@@ -245,7 +263,7 @@ if df is not None and not df.empty:
     
     with tab1:
         st.header("Period Summary")
-        st.caption(f"From {start_date_7.strftime('%d/%m/%Y')} to {end_date_7.strftime('%d/%m/%Y')}")
+        st.caption(f"From {start_date.strftime('%d/%m/%Y')} to {end_date_7.strftime('%d/%m/%Y')}")
         
         if df_filtered.empty:
             st.info("No data in the selected date range.")
@@ -406,21 +424,44 @@ if df is not None and not df.empty:
                 if diff_fat_last > 0.5:
                     st.error(f"⚠️ **Fat Alert:** Increase of {diff_fat_last:.1f} kg of body fat. Review your physical activity!")
 
-            # 2. Pattern Chart by Day of the Week
-            st.markdown("**Weekly Patterns (Average per day)**")
-            df_patterns = df_filtered.copy()
-            df_patterns['day_of_week'] = df_patterns['date'].dt.day_name()
-            # Sort days correctly
-            days_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-            df_patterns['day_of_week'] = pd.Categorical(df_patterns['day_of_week'], categories=days_order, ordered=True)
+            # 2. Weight Evolution (Trend + Values)
+            st.markdown("**Weight Evolution (Kg) - 7-day Trend**")
+            df_weight = df_filtered.copy()
+            df_weight['weight_MA7'] = df_weight['weight'].rolling(window=7, min_periods=1).mean()
             
-            daily_average = df_patterns.groupby('day_of_week', observed=True)[['weight', 'body_fat_mass']].mean().reset_index()
+            fig_weight = go.Figure()
+            # Real Weight Value
+            fig_weight.add_trace(go.Scatter(x=df_weight['date'], y=df_weight['weight'],
+                                         mode='lines+markers', name='Real Weight',
+                                         marker=dict(color='lightgray', size=8), opacity=0.6))
+            # 7-day Moving Average Trend
+            fig_weight.add_trace(go.Scatter(x=df_weight['date'], y=df_weight['weight_MA7'],
+                                         mode='lines+markers', name='Trend (7d)',
+                                         line=dict(color='#2196F3', width=3)))
             
-            fig_patterns = px.bar(daily_average, x='day_of_week', y='weight', 
-                                title="Average Weight by Day of the Week",
-                                color='weight', color_continuous_scale='Blues')
-            fig_patterns.update_layout(height=350, xaxis_title="", coloraxis_showscale=False)
-            st.plotly_chart(fig_patterns, width='stretch')
+            # Goal Line
+            if weight_target > 0:
+                fig_weight.add_hline(y=weight_target, line_dash="dash", line_color="#FFD700", 
+                                   annotation_text=f"Goal: {weight_target}kg", annotation_position="bottom right")
+
+            # Health bands for weight
+            fig_weight = add_health_bands(fig_weight, "weight")
+            
+            # Adjust Y axis to focus on data (avoiding the 1000 default from bands)
+            y_min = df_weight['weight'].min() - 2
+            y_max = df_weight['weight'].max() + 2
+            # Ensure the goal is visible if it exists
+            if weight_target > 0:
+                y_min = min(y_min, weight_target - 2)
+                y_max = max(y_max, weight_target + 2)
+
+            fig_weight.update_layout(
+                hovermode="x unified", 
+                height=400, 
+                margin=dict(l=10, r=10, t=30, b=10),
+                yaxis=dict(range=[y_min, y_max], fixedrange=False)
+            )
+            st.plotly_chart(fig_weight, width='stretch')
             
             st.markdown("---")
             
@@ -484,7 +525,7 @@ if df is not None and not df.empty:
             fig1 = go.Figure()
             # Real points
             fig1.add_trace(go.Scatter(x=df_plot['date'], y=df_plot['muscle_mass'],
-                                     mode='markers', name='Real Value',
+                                     mode='lines+markers', name='Real Value',
                                      marker=dict(color='lightgray', size=8), opacity=0.6))
             # Trend
             fig1.add_trace(go.Scatter(x=df_plot['date'], y=df_plot['muscle_mass_MA7'],
@@ -504,7 +545,12 @@ if df is not None and not df.empty:
                           labels={'muscle_percentage': '% Muscle'})
             fig2.update_traces(marker_color=point_colors)
             fig2 = add_health_bands(fig2, "muscle_percentage")
-            fig2.update_layout(height=400)
+            
+            # Adjust Y axis for detail
+            y_max_m = df_plot['muscle_percentage'].max() + 5
+            y_min_m = max(0, df_plot['muscle_percentage'].min() - 5)
+            
+            fig2.update_layout(height=250, yaxis=dict(range=[y_min_m, y_max_m], fixedrange=False))
             st.plotly_chart(fig2, width='stretch')
 
     with tab3:
@@ -518,7 +564,7 @@ if df is not None and not df.empty:
             
             figg1 = go.Figure()
             figg1.add_trace(go.Scatter(x=df_plot['date'], y=df_plot['body_fat_mass'],
-                                      mode='markers', name='Real Value',
+                                      mode='lines+markers', name='Real Value',
                                       marker=dict(color='lightgray', size=8), opacity=0.6))
             figg1.add_trace(go.Scatter(x=df_plot['date'], y=df_plot['body_fat_mass_MA7'],
                                       mode='lines+markers', name='Trend (7d)',
@@ -536,7 +582,12 @@ if df is not None and not df.empty:
                            labels={'body_fat_percentage': '% Fat'})
             figg2.update_traces(marker_color=point_colors_g)
             figg2 = add_health_bands(figg2, "body_fat_percentage")
-            figg2.update_layout(height=400)
+
+            # Adjust Y axis for detail
+            y_max_f = df_plot['body_fat_percentage'].max() + 5
+            y_min_f = max(0, df_plot['body_fat_percentage'].min() - 5)
+
+            figg2.update_layout(height=400, yaxis=dict(range=[y_min_f, y_max_f], fixedrange=False))
             st.plotly_chart(figg2, width='stretch')
 
     with tab4:
@@ -592,6 +643,39 @@ if df is not None and not df.empty:
                 draw_legend("muscle_percentage")
                 st.markdown("<br>", unsafe_allow_html=True)
                 draw_legend("body_fat_percentage")
+            
+            st.markdown("---")
+            st.subheader("📉 Measurements Trend")
+            
+            # Measurements Trend Chart
+            df_measure = df_filtered.copy()
+            fig_measure = go.Figure()
+            
+            measure_metrics = {
+                'waist': {'name': 'Waist', 'color': '#FF9800'}, # Orange
+                'hip': {'name': 'Hip', 'color': '#9C27B0'},   # Purple
+                'chest': {'name': 'Chest', 'color': '#009688'} # Teal
+            }
+            
+            for m_key, m_info in measure_metrics.items():
+                if m_key in df_measure.columns:
+                    fig_measure.add_trace(go.Scatter(
+                        x=df_measure['date'], 
+                        y=df_measure[m_key],
+                        mode='lines+markers',
+                        name=m_info['name'],
+                        line=dict(color=m_info['color'], width=3),
+                        marker=dict(size=8)
+                    ))
+            
+            fig_measure.update_layout(
+                title="Evolution of Waist, Hip, and Chest (cm)",
+                hovermode="x unified",
+                height=450,
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            st.plotly_chart(fig_measure, width='stretch')
+
         else:
              st.info("No data to show in body composition.")
              
@@ -601,14 +685,18 @@ if df is not None and not df.empty:
         st.caption("Note: Values in **red** indicate the historical maximum and in **green** the historical minimum of each column.")
 
         new_custom_order = [
-            'date', 'weight', 'muscle_mass', 'body_fat_mass', 'fat_free_body_weight',
-            'protein_mass', 'skeletal_muscle_mass', 'visceral_fat_rating',
-            'body_water_mass', 'muscle_percentage', 'body_fat_percentage',
-            'protein_percentage', 'bmi', 'bone_mineral_content',
+            'date', 'weight', 'muscle_mass', 'body_fat_mass'
+            'fat_free_body_weight', 'protein_mass', 'skeletal_muscle_mass', 
+            'visceral_fat_rating', 'body_water_mass', 'muscle_percentage', 
+            'body_fat_percentage', 'protein_percentage', 
+            'waist', 'hip', 'chest', 
+            'bmi', 'bone_mineral_content',
             'body_water_percentage', 'bone_mineral_percentage', 'basal_metabolic_rate',
             'waist_hip_ratio_estimate', 'body_age', 'filename'
         ]
         
+        # Filter only existing columns from the custom order to avoid KeyError
+        new_custom_order = [c for c in new_custom_order if c in df.columns]
         df = df[new_custom_order]
         df_reversed = df.sort_values(by='date', ascending=False)
         

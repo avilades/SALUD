@@ -67,22 +67,22 @@
       "description": "The percentage should be high to reflect good physical condition.",
       "color_bands": [
         {
-          "min": null,
-          "max": 50.0,
+          "min": 60,
+          "max": null,
           "level": "Optimal/High",
           "color": "#4CAF50",
           "description": "Excellent muscle development."
         },
         {
-          "min": 35.0,
-          "max": 50.0,
+          "min": 40.0,
+          "max": 60.0,
           "level": "Acceptable",
           "color": "#FFEB3B",
           "description": "Standard muscle level relative to body total."
         },
         {
           "min": null,
-          "max": 35.0,
+          "max": 40.0,
           "level": "Low/Risk",
           "color": "#FF9F1C",
           "description": "Low percentage. Urgent need to increase muscle mass."
@@ -309,6 +309,33 @@
           "color": "#FF6B6B",
           "description": "Excess fat."
         }
+      ]
+    },
+    "waist": {
+      "unit": "cm",
+      "description": "Waist circumference measurement.",
+      "color_bands": [
+        { "min": 0, "max": 90.0, "level": "Optimal", "color": "#4CAF50", "description": "Healthy waist range." },
+        { "min": 90.1, "max": 100.0, "level": "Warning", "color": "#FFEB3B", "description": "Borderline high waist measurement." },
+        { "min": 100.1, "max": null, "level": "High Risk", "color": "#FF6B6B", "description": "High risk of metabolic syndrome." }
+      ]
+    },
+    "hip": {
+      "unit": "cm",
+      "description": "Hip circumference measurement.",
+      "color_bands": [
+        { "min": 0, "max": 100.0, "level": "Optimal", "color": "#4CAF50", "description": "Healthy hip range." },
+        { "min": 100.1, "max": 110.0, "level": "Warning", "color": "#FFEB3B", "description": "Moderately high hip measurement." },
+        { "min": 110.1, "max": null, "level": "High", "color": "#FF6B6B", "description": "High hip measurement." }
+      ]
+    },
+    "chest": {
+      "unit": "cm",
+      "description": "Chest circumference measurement.",
+      "color_bands": [
+        { "min": 0, "max": 100.0, "level": "Optimal", "color": "#4CAF50", "description": "Standard chest range." },
+        { "min": 100.1, "max": 110.0, "level": "Note", "color": "#FFEB3B", "description": "Check if due to muscle mass." },
+        { "min": 110.1, "max": null, "level": "High", "color": "#FF6B6B", "description": "High chest measurement." }
       ]
     }
   }

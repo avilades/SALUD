@@ -28,5 +28,14 @@
   },
   "body_fat_percentage": {
     "unit": "%"
+  },
+  "waist": {
+    "unit": "cm"
+  },
+  "hip": {
+    "unit": "cm"
+  },
+  "chest": {
+    "unit": "cm"
   }
 }
