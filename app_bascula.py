@@ -172,15 +172,16 @@ with st.sidebar:
         default_start_date = max(min_date, max_date - datetime.timedelta(days=30))
 
         start_date_7_day = max_date - datetime.timedelta(days=7)
-        start_date_30_day = max_date - datetime.timedelta(days=15)
+        start_date_15_day = max_date - datetime.timedelta(days=15)
+        start_date_30_day = max_date - datetime.timedelta(days=30)
         
-        date_range_7 = st.date_input("Select range:", (start_date_7_day, max_date), min_value=min_date, max_value=max_date)
+        date_range = st.date_input("Select range:", (start_date_15_day, max_date), min_value=min_date, max_value=max_date)
         #date_range_30 = st.date_input("Selecciona el rango:", (start_date_30_day, max_date), min_value=min_date, max_value=max_date)
         
-        if len(date_range_7) == 2:
-            start_date_7, end_date_7 = date_range_7
+        if len(date_range) == 2:
+            start_date_7, end_date_7 = date_range
         else:
-            start_date_7 = end_date_7 = date_range_7[0]
+            start_date_7 = end_date_7 = date_range[0]
             
         #if len(date_range_30) == 2:
         #    start_date_30, end_date_30 = date_range_30
