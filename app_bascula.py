@@ -685,7 +685,7 @@ if df is not None and not df.empty:
         st.caption("Note: Values in **red** indicate the historical maximum and in **green** the historical minimum of each column.")
 
         new_custom_order = [
-            'date', 'weight', 'muscle_mass', 'body_fat_mass'
+            'date', 'weight', 'muscle_mass', 'body_fat_mass',
             'fat_free_body_weight', 'protein_mass', 'skeletal_muscle_mass', 
             'visceral_fat_rating', 'body_water_mass', 'muscle_percentage', 
             'body_fat_percentage', 'protein_percentage', 
